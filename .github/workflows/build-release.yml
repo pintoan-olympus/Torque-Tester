@@ -38,15 +38,9 @@ jobs:
         run: |
           # Create directory structure
           New-Item -ItemType Directory -Force -Path "TorqueTester-Release"
-          New-Item -ItemType Directory -Force -Path "TorqueTester-Release/documentation"
           
           # Copy executable
           Copy-Item -Path "dist/TorqueTester.exe" -Destination "TorqueTester-Release/TorqueTester.exe" -Force
-          
-          # Copy documentation files
-          Copy-Item -Path "dist/documentation/app_documentation.md" -Destination "TorqueTester-Release/documentation/app_documentation.md" -Force
-          Copy-Item -Path "dist/documentation/technical_report.md" -Destination "TorqueTester-Release/documentation/technical_report.md" -Force
-          Copy-Item -Path "dist/documentation/walkthrough.md" -Destination "TorqueTester-Release/documentation/walkthrough.md" -Force
           
           # Copy README
           Copy-Item -Path "README.md" -Destination "TorqueTester-Release/README.md" -Force
