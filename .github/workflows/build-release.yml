@@ -1,0 +1,61 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Executable
+        run: |
+          pyinstaller --clean torque_tester.spec
+
+      - name: Organize Release Bundle
+        run: |
+          # Create directory structure
+          New-Item -ItemType Directory -Force -Path "TorqueTester-Release"
+          New-Item -ItemType Directory -Force -Path "TorqueTester-Release/documentation"
+          
+          # Copy executable
+          Copy-Item -Path "dist/TorqueTester.exe" -Destination "TorqueTester-Release/TorqueTester.exe" -Force
+          
+          # Copy documentation files
+          Copy-Item -Path "dist/documentation/app_documentation.md" -Destination "TorqueTester-Release/documentation/app_documentation.md" -Force
+          Copy-Item -Path "dist/documentation/technical_report.md" -Destination "TorqueTester-Release/documentation/technical_report.md" -Force
+          Copy-Item -Path "dist/documentation/walkthrough.md" -Destination "TorqueTester-Release/documentation/walkthrough.md" -Force
+          
+          # Copy README
+          Copy-Item -Path "README.md" -Destination "TorqueTester-Release/README.md" -Force
+
+      - name: Create Zip Archive
+        run: |
+          Compress-Archive -Path "TorqueTester-Release" -DestinationPath "TorqueTester-Windows.zip" -Force
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: TorqueTester-Windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
