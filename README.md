@@ -565,7 +565,7 @@ Log rotation is handled automatically (10 MB max per file, 5 backup files retain
 
 1. **Check `logs/app.log`** — all errors, connection attempts, and setting changes are logged.
 2. **Settings → Raw Frame feed** — shows the exact bytes arriving from the sensor in real time.
-3. **Run `verify_imports.py`** — confirms all Python modules import cleanly after code changes.
+3. **Run `dev_tools/verify_imports.py`** — confirms all Python modules import cleanly after code changes.
 
 ---
 
@@ -604,7 +604,7 @@ Log rotation is handled automatically (10 MB max per file, 5 backup files retain
 ### Running Import Verification
 
 ```powershell
-python verify_imports.py
+python dev_tools/verify_imports.py
 ```
 Verifies all 19 project modules import without errors. Run this after any code change before committing.
 
@@ -621,7 +621,7 @@ Verifies all 19 project modules import without errors. Run this after any code c
 
 ### Acceptance Criteria
 
-- All `verify_imports.py` checks pass: ✅ `SUCCESS: All modules imported successfully without errors!`
+- All `dev_tools/verify_imports.py` checks pass: ✅ `SUCCESS: All modules imported successfully without errors!`
 - Simulated test session completes with correct PASS/FAIL/ABORTED result.
 - Hardware settings persist across app restarts (read from `hardware.ini`).
 - No SQL errors in `logs/app.log` during normal operation.
@@ -677,9 +677,9 @@ Verifies all 19 project modules import without errors. Run this after any code c
 
 ### Technical Debt
 
-- `test_settings_crash.py` and `verify_imports.py` are developer utility scripts — should be moved to a `dev_tools/` directory and excluded from releases.
-- `config.py` still contains `DEFAULT_COMM_SETTINGS` dict that was previously used for database seeding; this can be simplified now that `hardware.ini` handles defaults.
-- The `.spec` file includes macOS-specific library warning suppressions that are not needed for a Windows-only build.
+- `dev_tools/test_settings_crash.py` and `dev_tools/verify_imports.py` are developer utility scripts stored in `dev_tools/` directory.
+- Consolidated default hardware settings dynamically in `hardware_config.py` avoiding dictionary pollution in `config.py`.
+- Optimized the `.spec` file by stripping macOS-specific options for a pure Windows build.
 
 ### Recommended Refactoring Areas
 

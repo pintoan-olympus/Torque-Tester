@@ -3,7 +3,7 @@ import os
 import customtkinter as ctk
 
 # Add root folder to sys.path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.db_manager import DatabaseManager
 from auth.user_manager import UserManager

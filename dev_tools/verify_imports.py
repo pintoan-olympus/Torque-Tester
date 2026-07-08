@@ -2,7 +2,7 @@ import sys
 import os
 
 # Add root folder to sys.path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 print("Verifying imports for Torque Tester modules...")
 

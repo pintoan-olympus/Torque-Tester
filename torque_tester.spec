@@ -99,9 +99,6 @@ exe = EXE(
     upx=True,
     console=False,        # No terminal window (GUI mode)
     disable_windowed_traceback=False,
-    argv_emulation=False,
     target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
     # icon="assets/icon.ico",  # Uncomment and add icon file to enable
 )

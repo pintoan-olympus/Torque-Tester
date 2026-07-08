@@ -161,12 +161,32 @@ class TorqueSensorSerial(TorqueSensorInterface):
         frames_parsed = 0
 
         while self._running:
-            # ── guard: is port still open? ─────────────────────────────────
+            # ── guard: is port still open? (with auto-reconnect retry) ─────
             if not (self._serial and self._serial.is_open):
                 with self._lock:
                     self._connected = False
-                time.sleep(0.2)
+                    self._current_torque = 0.0
+                
+                logger.warning(f"Serial: Connection lost or not open on {self.port}. Attempting auto-reconnect...")
+                try:
+                    self._serial = serial.Serial(
+                        port      = self.port,
+                        baudrate  = self.baudrate,
+                        bytesize  = self._map_bytesize(self.bytesize),
+                        parity    = self._map_parity(self.parity),
+                        stopbits  = self._map_stopbits(self.stopbits),
+                        timeout   = self.timeout,
+                    )
+                    with self._lock:
+                        self._connected = True
+                        self._current_torque = 0.0
+                        self._peak_torque = 0.0
+                    logger.info(f"Serial: Reconnected successfully to {self.port}!")
+                except Exception as reconnect_err:
+                    logger.debug(f"Serial: Reconnect attempt failed on {self.port}: {reconnect_err}")
+                    time.sleep(2.0)  # Back-off for 2 seconds before retrying
                 continue
+
 
             try:
                 if self._compiled_pattern:

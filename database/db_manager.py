@@ -380,6 +380,8 @@ class DatabaseManager:
                 )
             
             conn.commit()
+        
+        self.backup_db()
 
     # --- User Operations ---
     
@@ -880,3 +882,43 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error resetting all test data: {e}")
             return False, str(e)
+
+    def backup_db(self):
+        """Automatically backs up the SQLite database to a local backups/ folder, maintaining a maximum of 7 backups."""
+        db_type = self.db_config.get("db_type", "sqlite")
+        if db_type != "sqlite":
+            return  # SQL Server has its own enterprise backup policies
+
+        try:
+            sqlite_path_str = self.db_config.get("sqlite_path") or str(config.DB_PATH)
+            sqlite_path = Path(sqlite_path_str).resolve()
+            if not sqlite_path.exists():
+                return
+
+            # Create backups directory next to the database file
+            backup_dir = sqlite_path.parent / "backups"
+            backup_dir.mkdir(exist_ok=True)
+
+            # Generate timestamped backup filename
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_name = f"torque_tester_backup_{timestamp}.db"
+            backup_path = backup_dir / backup_name
+
+            # Copy database file
+            import shutil
+            shutil.copy2(sqlite_path, backup_path)
+            logger.info(f"DatabaseManager: Created automated SQLite backup at: {backup_path}")
+
+            # Enforce rolling 7-backup policy
+            backup_files = sorted(list(backup_dir.glob("torque_tester_backup_*.db")), key=lambda x: x.stat().st_mtime)
+            if len(backup_files) > 7:
+                excess_count = len(backup_files) - 7
+                for i in range(excess_count):
+                    try:
+                        backup_files[i].unlink()
+                        logger.info(f"DatabaseManager: Cleaned up old backup: {backup_files[i].name}")
+                    except Exception as clean_err:
+                        logger.error(f"DatabaseManager: Failed to delete old backup {backup_files[i]}: {clean_err}")
+
+        except Exception as e:
+            logger.error(f"DatabaseManager: Failed to perform automated backup: {e}")

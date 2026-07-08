@@ -121,6 +121,16 @@ class DashboardView(ctk.CTkFrame):
             self.test_name_var.set(self.app.selected_test_def.name)
             self.on_test_selected(self.app.selected_test_def.name)
 
+        # USB HID Barcode scanner buffer setup
+        self._scan_buffer = []
+        self._last_scan_time = 0.0
+        
+        # Bind global keypress event
+        try:
+            self.winfo_toplevel().bind("<Key>", self.on_global_key)
+        except Exception as e:
+            logger.error(f"DashboardView: Failed to bind global keys: {e}")
+
     def on_workbench_changed(self, choice):
         self.app.update_workbench(choice.strip())
         self.validate_inputs()
@@ -246,3 +256,42 @@ class DashboardView(ctk.CTkFrame):
         
         # Open Test Runner
         self.app.show_view(TestRunnerView)
+
+    def on_global_key(self, event):
+        # Only parse keypresses if the dashboard view is active
+        if getattr(self.app, "current_view", None) is not self:
+            return
+
+        import time
+        now = time.time()
+        char = event.char
+        keysym = event.keysym
+        
+        if keysym == "Return":
+            if self._scan_buffer:
+                scanned_val = "".join(self._scan_buffer).strip()
+                self._scan_buffer.clear()
+                
+                # Check if it corresponds to an active torque driver
+                driver = self.app.db.get_driver_by_tag(scanned_val)
+                if driver:
+                    self.driver_id_var.set(driver.driver_id)
+                    self.on_driver_selected(driver.driver_id)
+                    logger.info(f"Barcode Scanner: Auto-selected Torque Driver '{driver.driver_id}'")
+            return
+            
+        # Differentiate rapid hardware input from manual typing (USB HID keyboard emulation)
+        if char and char.isprintable():
+            # If the duration since last keystroke is large, reset buffer (it was manual typing or a new scan)
+            if now - self._last_scan_time > 0.08:  # 80ms threshold
+                self._scan_buffer = [char]
+            else:
+                self._scan_buffer.append(char)
+            self._last_scan_time = now
+
+    def destroy(self):
+        try:
+            self.winfo_toplevel().unbind("<Key>")
+        except Exception:
+            pass
+        super().destroy()

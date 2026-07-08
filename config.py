@@ -51,41 +51,6 @@ TEST_TYPE_LABELS = {
     TEST_TYPE_RESIDUAL: "Residual Torque"
 }
 
-# Communication Default Settings
-DEFAULT_COMM_SETTINGS = {
-    "port": "COM1",
-    "baudrate": 9600,
-    "bytesize": 8,
-    "parity": "N",      # N = None, E = Even, O = Odd
-    "stopbits": 1,      # 1, 1.5, 2
-    "timeout": 1.0,
-    "simulator_mode": True,  # Default to simulation mode for safety / ease of testing
-    "tester_model": "ng-TTS50-xu",
-    
-    # Tester B Default settings
-    "port_b": "COM2",
-    "baudrate_b": 9600,
-    "bytesize_b": 8,
-    "parity_b": "N",
-    "stopbits_b": 1,
-    "timeout_b": 1.0,
-    "simulator_mode_b": True,
-    "tester_model_b": "ng-TTS50-xu",
-
-    # Custom model fields (shared fallback for all slots; per-slot keys use suffix _b, _c, …)
-    "custom_model_name": "My Sensor",
-    "custom_torque_min": 0.0,
-    "custom_torque_max": 50.0,
-    "custom_serial_pattern": r"([+-]?\d+\.\d+)\s*Nm",
-    "custom_model_name_b": "My Sensor B",
-    "custom_torque_min_b": 0.0,
-    "custom_torque_max_b": 50.0,
-    "custom_serial_pattern_b": r"([+-]?\d+\.\d+)\s*Nm",
-
-    # How many tester slots are configured (minimum 2 = A + B)
-    "tester_count": 2
-}
-
 # App Info
 APP_NAME = "Torque Tester & Calibration System"
 VERSION = "1.0.0"

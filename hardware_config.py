@@ -6,6 +6,22 @@ from utils.logger import get_logger
 
 logger = get_logger()
 
+DEFAULT_VALUES = {
+    "port": "COM1",
+    "baudrate": 9600,
+    "bytesize": 8,
+    "parity": "N",
+    "stopbits": 1,
+    "timeout": 1.0,
+    "simulator_mode": True,
+    "tester_model": "ng-TTS50-xu",
+    "custom_model_name": "My Sensor",
+    "custom_torque_min": 0.0,
+    "custom_torque_max": 50.0,
+    "custom_serial_pattern": r"([+-]?\d+\.\d+)\s*Nm",
+    "tester_count": 2
+}
+
 class HardwareConfig:
     def __init__(self, filepath=None):
         if filepath is None:
@@ -101,9 +117,21 @@ class HardwareConfig:
         section, key = self._resolve_key(flat_key)
         
         if not self.parser.has_section(section) or not self.parser.has_option(section, key):
-            # Fallback to config.DEFAULT_COMM_SETTINGS if available
-            if flat_key in config.DEFAULT_COMM_SETTINGS:
-                return config.DEFAULT_COMM_SETTINGS[flat_key]
+            # Fallback to local default mapping
+            if flat_key == "tester_count":
+                return 2
+                
+            if key in DEFAULT_VALUES:
+                # Handle ordinal-based COM ports dynamic resolution (COM1, COM2, COM3, ...)
+                if key == "port" and section.startswith("tester_"):
+                    char_idx = ord(section[7]) - ord('a') + 1
+                    return f"COM{char_idx}"
+                # Handle custom model names dynamic resolution (My Sensor, My Sensor B, My Sensor C, ...)
+                if key == "custom_model_name" and section.startswith("tester_"):
+                    char = section[7].upper()
+                    return f"My Sensor" if char == 'A' else f"My Sensor {char}"
+                return DEFAULT_VALUES[key]
+                
             return default
             
         val_str = self.parser.get(section, key)
