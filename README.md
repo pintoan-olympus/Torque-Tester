@@ -1,6 +1,6 @@
 # 🔧 Torque Tester & Calibration System
 
-> **Version 1.0.0** | Python 3.14 | Windows 10/11  
+> **Version 1.1.0** | Python 3.14 | Windows 10/11  
 > Industrial torque tool auditing, peak-torque measurement, and QA compliance logging platform.
 
 ---
@@ -57,14 +57,17 @@ The application supports the **tool calibration and quality assurance workflow**
 | Feature | Description |
 |---|---|
 | **User Login & Session Management** | Secure login with bcrypt-hashed passwords, session-level user tracking |
-| **Driver Registry** | Register, edit, clone, and search torque drivers with calibration dates and model data |
+| **Driver Registry** | Register, edit, clone, and search torque drivers with calibration dates and default templates |
 | **Procedure Templates** | Define, clone, and search QA test procedures with tolerance and sample count rules |
-| **Dashboard** | Barcode-scan or select driver, choose workbench and test template to initiate a test session |
-| **Test Runner** | Live torque feed with visual needle gauge, auto snap-back peak capture, sample log table |
-| **Test History** | Filterable audit table with Driver ID, Workbench, Operator, Result, Date filters; CSV export |
-| **Settings — Hardware** | Per-tester COM port, baud rate, model, simulator toggle; supports up to 8 tester slots |
-| **Settings — Database** | Switch between local SQLite and remote SQL Server at runtime |
-| **Settings — Data Management** | CSV export/import per table; full test record wipe with pre-wipe CSV backup |
+| **Dashboard** | Initialize sessions with barcode scanning or driver select, workbench and templates |
+| **Barcode Scanning (USB HID)** | Hands-free driver profiles loading by capturing rapid scanner keystrokes globally |
+| **Test Runner** | Live torque feed with visual gauge, snap-back peak capture, and sample audits |
+| **Test History** | Filterable history table with overall result status and complete CSV export |
+| **Settings — Hardware** | Tabbed configurations, simulator toggles, and dynamic port slots (A through H) |
+| **Settings — Database** | Switch between local SQLite and remote SQL Server connection strings |
+| **SQLite Rolling Backups** | Auto-creates timestamped SQLite file copies on startup, retaining a maximum of 7 |
+| **Serial Hot-Swap Reconnect** | Background thread auto-reconnect retry loop when hardware is unplugged and reinserted |
+| **Data Management** | CSV export/import per table; full test record wipe with automatic pre-wipe CSV backup |
 | **User Administration** | Create, edit, deactivate users; password reset (Admin only) |
 
 ### Workflow Diagram
@@ -148,12 +151,16 @@ torque_tester/
 │   └── user_manager.py      # User auth: bcrypt hashing, session, access level check
 │
 ├── database/
-│   ├── db_manager.py        # SQLite + SQL Server manager, schema migrations, CRUD
+│   ├── db_manager.py        # SQLite + SQL Server manager, schema migrations, backups, CRUD
 │   └── models.py            # Dataclass row wrappers (TorqueDriver, TestDefinition, etc.)
+│
+├── dev_tools/
+│   ├── verify_imports.py    # Developer utility: imports verification
+│   └── test_settings_crash.py # Developer utility: settings UI crash test
 │
 ├── sensor/
 │   ├── sensor_interface.py  # Abstract base class for all sensor backends
-│   ├── serial_comm.py       # Real hardware: RS-232 reader, scientific notation parser
+│   ├── serial_comm.py       # Real hardware: RS-232 reader, scientific notation parser, auto-reconnect
 │   └── simulator.py         # Software simulator: generates synthetic torque waveforms
 │
 ├── utils/
@@ -162,7 +169,7 @@ torque_tester/
 │
 ├── views/
 │   ├── components.py        # Reusable ScrollableTable widget
-│   ├── dashboard.py         # Session initialization screen
+│   ├── dashboard.py         # Dashboard: initialization, global barcode scanning
 │   ├── driver_manager.py    # Driver registry CRUD
 │   ├── settings_view.py     # Hardware, DB connection, data management settings
 │   ├── test_history.py      # Session audit log with filters and CSV export
@@ -173,11 +180,7 @@ torque_tester/
 ├── dist/
 │   ├── TorqueTester.exe     # Compiled single-file executable (PyInstaller)
 │   ├── hardware.ini         # Machine-local sensor config (not committed to git)
-│   ├── db_config.json       # Database connection config (not committed to git)
-│   └── documentation/
-│       ├── app_documentation.md
-│       ├── technical_report.md
-│       └── walkthrough.md
+│   └── db_config.json       # Database connection config (not committed to git)
 │
 ├── hardware.ini             # (Runtime) Machine-local hardware config — gitignored
 ├── db_config.json           # (Runtime) DB connection config — gitignored
@@ -264,6 +267,13 @@ Any sensor outputting newline-terminated ASCII can be connected using **Custom m
    ([+-]?\d+\.\d+)\s*Nm
    ```
 3. Set custom min/max torque bounds for the visual gauge.
+
+### Hot-Swap Auto-Reconnect
+
+The background communication thread runs an automatic reconnection retry loop:
+- If the USB serial cable is disconnected during a session, the sensor connection status drops to `OFFLINE`.
+- The background thread immediately begins polling the target COM port every 2.0 seconds.
+- Once the sensor is reconnected or powered back on, the thread re-establishes the connection dynamically and resumes live measurements. No manual operator intervention is required.
 
 ### Calibration Considerations
 
@@ -461,6 +471,11 @@ overall_result (PASS/FAIL/ABORTED)
 
 ### Backup and Recovery
 
+**Automated Rolling Backups (SQLite):**
+- Upon application startup, if using SQLite, the database manager automatically saves a copy of the database into the `backups/` directory next to the database file.
+- The files are named `torque_tester_backup_YYYYMMDD_HHMMSS.db`.
+- The system enforces a rolling retention policy keeping only the **7 most recent backups** (older copies are cleaned up automatically).
+
 **Export via Settings UI:**
 - Navigate to **Settings → Data Management**.
 - Click **Export** on any table to download a timestamped CSV.
@@ -483,19 +498,21 @@ Copy-Item torque_tester.db torque_tester_backup_$(Get-Date -Format yyyyMMdd).db
 |---|---|
 | `main.py` | Process entry point, DPI awareness, app lifecycle |
 | `app.py` | MVC controller: view routing, sensor management, status bar |
-| `config.py` | Centralised constants: paths, access levels, test types, defaults |
-| `hardware_config.py` | INI-based hardware settings manager |
+| `config.py` | Centralised constants: paths, access levels, test types |
+| `hardware_config.py` | INI-based hardware settings manager and dynamic fallback default solver |
 | `auth/login_view.py` | Login UI with credential validation |
 | `auth/user_manager.py` | bcrypt hashing, current-user session, role checks |
-| `database/db_manager.py` | All DB operations: connection pooling, CRUD, schema migration |
+| `database/db_manager.py` | All DB operations: connection pooling, SQL Server compatibility, schema migration, automated rolling SQLite backups |
 | `database/models.py` | Typed dataclasses mapping DB rows to Python objects |
+| `dev_tools/verify_imports.py` | Testing utility: imports sanity checks |
+| `dev_tools/test_settings_crash.py` | Testing utility: SettingsView UI loading check |
 | `sensor/sensor_interface.py` | Abstract interface defining the sensor API contract |
-| `sensor/serial_comm.py` | Physical sensor: RS-232 reader, frame parser, peak tracking |
+| `sensor/serial_comm.py` | Physical sensor: RS-232 reader, scientific notation parser, peak tracking, background hot-swap auto-reconnect retry loop |
 | `sensor/simulator.py` | Software simulator generating synthetic torque curves |
 | `utils/helpers.py` | Datetime formatting, cNm display helpers |
 | `utils/logger.py` | Rotating file logger (16 KB tail read for UI log viewer) |
 | `views/components.py` | `ScrollableTable` reusable grid widget |
-| `views/dashboard.py` | Session setup: driver select, workbench, template picker |
+| `views/dashboard.py` | Dashboard view: session initialization, global key listener for barcode scans |
 | `views/driver_manager.py` | Driver CRUD: register, edit, clone, search, delete |
 | `views/test_setup.py` | Procedure template CRUD |
 | `views/test_runner.py` | Live test: gauge, snap-back engine, sample log |
@@ -695,6 +712,7 @@ Verifies all 19 project modules import without errors. Run this after any code c
 
 | Version | Date | Changes |
 |---|---|---|
+| `v1.1.0` | 2026-07-08 | Version 1.1.0: hands-free USB HID barcode scanning, daily/startup rolling SQLite backups, serial connection hot-swap reconnect, config defaults simplification, and build cleanup |
 | `v1.0.0` | 2026-07-08 | Initial release: full feature set including multi-sensor support, hardware.ini migration, test history CSV export, driver/template clone, search, and compiled executable |
 
 ### Configuration Example — `hardware.ini`
@@ -749,7 +767,6 @@ tester_model = ng-TTS500-xu
 
 | Document | Location |
 |---|---|
-| Application Documentation | `dist/documentation/app_documentation.md` |
-| Technical Report | `dist/documentation/technical_report.md` |
-| Feature Walkthrough | `dist/documentation/walkthrough.md` |
-| This README | `README.md` (repository root) |
+| Main README | `README.md` (repository root) |
+| Developer verify_imports utility | `dev_tools/verify_imports.py` |
+| Developer test_settings_crash utility | `dev_tools/test_settings_crash.py` |
