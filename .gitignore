@@ -1,0 +1,48 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pycache
+
+# === PyInstaller Build Artefacts ===
+build/
+dist/TorqueTester.exe
+dist/logs/
+*.spec.bak
+
+# === Machine-Local Config (per-device, never shared) ===
+hardware.ini
+db_config.json
+
+# === Database Files ===
+*.db
+*.sqlite
+*.sqlite3
+
+# === Logs ===
+logs/
+*.log
+
+# === Environment ===
+.env
+.venv/
+venv/
+env/
+
+# === IDE / Editor ===
+.vscode/
+.idea/
+*.suo
+*.user
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Dist (keep documentation only) ===
+dist/TorqueTester.exe
+dist/db_config.json
+dist/hardware.ini
+dist/logs/
