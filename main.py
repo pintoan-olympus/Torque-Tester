@@ -1,5 +1,6 @@
 import sys
 import os
+import urllib.parse
 import customtkinter as ctk
 import config
 from utils.logger import get_logger
