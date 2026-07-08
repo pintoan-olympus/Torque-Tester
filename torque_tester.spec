@@ -50,6 +50,8 @@ a = Analysis(
         "logging.handlers",
         "threading",
         "queue",
+        "urllib",
+        "urllib.parse",
         # project modules
         "config",
         "app",
