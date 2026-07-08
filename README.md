@@ -19,8 +19,7 @@
 10. [Security and Access](#10-security-and-access)
 11. [Testing Documentation](#11-testing-documentation)
 12. [Business Continuity](#12-business-continuity)
-13. [Future Development Roadmap](#13-future-development-roadmap)
-14. [Appendices](#14-appendices)
+13. [Appendices](#13-appendices)
 
 ---
 
@@ -651,20 +650,20 @@ Verifies all 19 project modules import without errors. Run this after any code c
 
 | Risk | Impact | Likelihood |
 |---|---|---|
-| `torque_tester.db` corruption or deletion | Loss of all test history | Low (SSD failure / accidental delete) |
+| `torque_tester.db` corruption or deletion | Loss of all test history | Extremely Low (mitigated by automated rolling backups) |
 | ng-TTS50-xu hardware failure | No physical measurement capability | Medium |
 | Python 3.14 incompatibility with future packages | App cannot be updated without re-testing | Low-Medium |
 | Single-workstation SQLite deployment | No redundancy or concurrent access | Medium (if multi-user needed) |
 
 ### Single Points of Failure
 
-- **SQLite database file**: No built-in replication. Mitigate with scheduled file copy backups.
-- **Serial hardware**: No hot-swap retry beyond manual reconnect. Simulator mode available as fallback.
+- **SQLite database file**: Mitigated with **automated startup rolling backups** (retains up to 7 timestamped copies under the `backups/` directory).
+- **Serial hardware**: Mitigated with **automated background reconnect polling loop** (restores connection dynamically when hardware is plugged back in).
 - **Single executable**: If `TorqueTester.exe` is deleted, rebuild from source with `pyinstaller torque_tester.spec`.
 
 ### Recovery Procedures
 
-1. **Database loss**: Restore from latest CSV exports (Settings → Data Management → Export). Re-import using the Import function.
+1. **Database loss**: Restore from the latest automated database copy inside the `backups/` directory, or from historical CSV exports (Settings → Data Management → Export).
 2. **Executable loss**: Re-run `pyinstaller --clean torque_tester.spec` from source.
 3. **Settings loss**: `hardware.ini` and `db_config.json` will be recreated with defaults on next launch. Re-enter COM port and baud rate settings via the Settings UI.
 4. **Source code loss**: Clone from GitHub: `git clone https://github.com/pintoan-olympus/Torque-Tester.git`
@@ -672,41 +671,12 @@ Verifies all 19 project modules import without errors. Run this after any code c
 ### Knowledge Transfer Recommendations
 
 - Ensure at least **2 personnel** are trained to administer the system (user management, hardware config, DB backup).
-- Keep a copy of this README and the `dist/documentation/` folder on a shared drive.
+- Keep a copy of this README on a shared drive.
 - Document site-specific COM port assignments and SQL Server connection strings in a local runbook stored separately from this repository.
 
 ---
 
-## 13. Future Development Roadmap
-
-### Improvement Opportunities
-
-| Area | Recommendation |
-|---|---|
-| **Multi-workstation** | Migrate default deployment to SQL Server; add workstation ID tagging to sessions |
-| **Reporting** | Add PDF report generation per driver (calibration certificate-style output) |
-| **Barcode scanning** | Integrate USB HID barcode reader support for hands-free driver selection |
-| **Calibration alerts** | Add email/notification trigger when calibration due date is within N days |
-| **Live dashboard** | Add a supervisor overview screen showing all active workbench sessions in real time |
-| **OPC-UA / Modbus** | Abstract `sensor_interface.py` to support OPC-UA or Modbus TCP sensors for PLC-integrated environments |
-| **Audit log** | Add a dedicated user-action audit log table for regulatory traceability |
-| **Auto-update** | Implement a version check against GitHub releases for simple update notification |
-
-### Technical Debt
-
-- `dev_tools/test_settings_crash.py` and `dev_tools/verify_imports.py` are developer utility scripts stored in `dev_tools/` directory.
-- Consolidated default hardware settings dynamically in `hardware_config.py` avoiding dictionary pollution in `config.py`.
-- Optimized the `.spec` file by stripping macOS-specific options for a pure Windows build.
-
-### Recommended Refactoring Areas
-
-- Extract the snap-back state machine from `test_runner.py` into a standalone `peak_capture.py` module for independent unit testing.
-- Add type annotations consistently across all modules (partially done in `db_manager.py`).
-- Replace ad-hoc inline widget construction in `settings_view.py` with a reusable `TesterConfigPanel` component.
-
----
-
-## 14. Appendices
+## 13. Appendices
 
 ### Version History
 
