@@ -89,11 +89,6 @@ class TestSetupView(ctk.CTkFrame):
         self.tester_combo = ctk.CTkComboBox(scroll_fields, values=tester_options)
         self.tester_combo.pack(fill="x", padx=10, pady=(0, 5))
         
-        # Instructions Box
-        ctk.CTkLabel(scroll_fields, text="Operator Instructions:", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(5, 1), padx=10, anchor="w")
-        self.instructions_entry = ctk.CTkTextbox(scroll_fields, height=80)
-        self.instructions_entry.pack(fill="x", padx=10, pady=(0, 5))
-        
         # Active Checkbox
         self.active_var = ctk.BooleanVar(value=True)
         self.active_cb = ctk.CTkCheckBox(scroll_fields, text="Procedure Active", variable=self.active_var)
@@ -255,9 +250,6 @@ class TestSetupView(ctk.CTkFrame):
         
         self.tester_combo.set(f"Tester {getattr(test_def, 'default_tester_id', 'A')}")
 
-        self.instructions_entry.delete("1.0", "end")
-        self.instructions_entry.insert("1.0", test_def.instructions or "")
-        
         self.active_var.set(test_def.active)
         self.status_lbl.configure(text="")
 
@@ -273,7 +265,6 @@ class TestSetupView(ctk.CTkFrame):
         self.min_samples_entry.delete(0, "end")
         self.min_ok_entry.delete(0, "end")
         self.tester_combo.set("Tester A")
-        self.instructions_entry.delete("1.0", "end")
         self.active_var.set(True)
         self.status_lbl.configure(text="")
 
@@ -281,7 +272,7 @@ class TestSetupView(ctk.CTkFrame):
         # Validate inputs
         name = self.name_entry.get().strip()
         test_type = self.type_combo.get()
-        instructions = self.instructions_entry.get("1.0", "end-1c").strip()
+        instructions = ""
         active = self.active_var.get()
         
         if not name:
