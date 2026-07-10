@@ -548,7 +548,10 @@ class TestRunnerView(ctk.CTkFrame):
         min_ok = self.test_def.min_ok_samples if self.test_def.min_ok_samples is not None else self.test_def.num_samples
         self.overall_result = "PASS" if ok_count >= min_ok else "FAIL"
         
-        self.show_result_screen(self.overall_result, ok_count)
+        if self.on_step_complete:
+            self.save_and_finish()
+        else:
+            self.show_result_screen(self.overall_result, ok_count)
 
     def save_and_finish(self):
         """Finalize DB records and trigger completion callbacks."""
