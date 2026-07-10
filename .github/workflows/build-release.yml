@@ -1,9 +1,10 @@
 name: Build Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # Auto-build on tag push is PAUSED — enable when ready for next release
+  # push:
+  #   tags:
+  #     - 'v*'
   workflow_dispatch:
 
 permissions:
