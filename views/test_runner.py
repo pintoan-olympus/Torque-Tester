@@ -38,10 +38,9 @@ class DirectionAnimation(ctk.CTkCanvas):
 
     def draw_pass(self, val):
         self.delete("all")
+        # Draw a full green square with white border
+        self.create_rectangle(3, 3, self.width - 3, self.height - 3, fill="#00A86B", outline="white", width=3)
         cx, cy = self.width // 2, self.height // 2
-        r = min(self.width, self.height) // 3
-        # Solid green filled circle with white border, checkmark, and peak cNm value
-        self.create_oval(cx - r, cy - r, cx + r, cy + r, fill="#00A86B", outline="white", width=3)
         self.create_text(cx, cy - 12, text="✓ PASS", fill="white", font=("Arial", 18, "bold"))
         self.create_text(cx, cy + 12, text=f"{val:.2f}", fill="white", font=("Arial", 14, "bold"))
 
@@ -442,7 +441,7 @@ class TestRunnerView(ctk.CTkFrame):
         if programmatic:
             self.hide_pass_overlay_and_continue()
         else:
-            self.after(5000, self.hide_pass_overlay_and_continue)
+            self.after(2000, self.hide_pass_overlay_and_continue)
 
     def hide_pass_overlay_and_continue(self):
         """Hides PASS indicator and resumes measuring stage or concludes the session."""
