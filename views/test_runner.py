@@ -90,6 +90,7 @@ class TestRunnerView(ctk.CTkFrame):
         self.tracked_peak = 0.0
         self.polling_started = False
         self.auto_capture_var = ctk.BooleanVar(value=True)
+        self.pass_overlay = None
         
         # Grid layout for center alignment
         self.grid_columnconfigure(0, weight=1)
@@ -135,6 +136,7 @@ class TestRunnerView(ctk.CTkFrame):
         self.container.grid_rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=0)
         self.container.grid_columnconfigure((0, 1, 2), weight=0)
         self.container.configure(fg_color=bg_color)
+        self.pass_overlay = None
 
     def show_start_screen(self):
         """Screen 1 — Start Screen (Neutral background, large Set Torque message)"""
@@ -239,14 +241,13 @@ class TestRunnerView(ctk.CTkFrame):
         top_bar.grid_columnconfigure((0, 1, 2), weight=1)
         
         # Progress: Test X of Y (correct dynamic parameters)
-        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx + 1, m=self.test_def.num_samples)}"
-        lbl_progress = ctk.CTkLabel(
+        self.lbl_progress = ctk.CTkLabel(
             top_bar,
-            text=prog_text.upper(),
+            text="",
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color="gray60"
         )
-        lbl_progress.grid(row=0, column=0, sticky="w")
+        self.lbl_progress.grid(row=0, column=0, sticky="w")
         
         # Tester & Direction Identification
         is_lh = getattr(self.driver, 'handedness', 'right') == 'left'
@@ -333,43 +334,29 @@ class TestRunnerView(ctk.CTkFrame):
         self.peak_lbl.grid(row=0, column=1, padx=20, pady=10)
         
         # Bottom Details Area (white card, displays current results list and Centered Abort button)
-        bottom_area = ctk.CTkFrame(self.container, corner_radius=8, fg_color="white")
-        bottom_area.grid(row=3, column=0, sticky="nsew", padx=15, pady=(0, 15))
-        bottom_area.grid_columnconfigure(0, weight=2)
-        bottom_area.grid_columnconfigure(1, weight=1)
-        bottom_area.grid_rowconfigure(0, weight=1)
+        self.bottom_area = ctk.CTkFrame(self.container, corner_radius=8, fg_color="white")
+        self.bottom_area.grid(row=3, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        self.bottom_area.grid_columnconfigure(0, weight=2)
+        self.bottom_area.grid_columnconfigure(1, weight=1)
+        self.bottom_area.grid_rowconfigure(0, weight=1)
         
         # Left side: Results logs list
-        results_list_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
+        results_list_frame = ctk.CTkFrame(self.bottom_area, fg_color="transparent")
         results_list_frame.grid(row=0, column=0, sticky="nsw", padx=30, pady=15)
         
+        self.results_labels = []
         for idx in range(self.test_def.num_samples):
-            if idx < len(self.measurements):
-                m_val = abs(self.measurements[idx])
-                is_sample_ok, _, _ = check_tolerance(
-                    m_val, 
-                    self.test_def.target_value, 
-                    self.test_def.tolerance_plus, 
-                    self.test_def.tolerance_minus
-                )
-                status_txt = "PASS" if is_sample_ok else "FAIL"
-                lbl_color = "#00A86B" if is_sample_ok else "#FF0000"
-                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: {m_val:.2f} cNm ({status_txt})"
-            else:
-                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: PENDING"
-                lbl_color = "gray40"
-                
             lbl_line = ctk.CTkLabel(
                 results_list_frame,
-                text=line_text,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                text_color=lbl_color
+                text="",
+                font=ctk.CTkFont(size=14, weight="bold")
             )
             lbl_line.pack(anchor="w", pady=2)
+            self.results_labels.append(lbl_line)
             
         # Right side: Abort button
         btn_abort = ctk.CTkButton(
-            bottom_area,
+            self.bottom_area,
             text=i18n.t("run.abort", default="ABORT").upper(),
             height=50,
             width=200,
@@ -380,6 +367,9 @@ class TestRunnerView(ctk.CTkFrame):
             command=self.abort_test
         )
         btn_abort.grid(row=0, column=1, sticky="e", padx=30, pady=15)
+
+        # Populate top text and results labels
+        self.update_progress_and_labels()
 
         # Hidden Checkbox for auto-capture snapback state persistence
         self.auto_capture_cb = ctk.CTkCheckBox(self.container, variable=self.auto_capture_var)
@@ -392,73 +382,17 @@ class TestRunnerView(ctk.CTkFrame):
             
         self.trigger_simulated_torque()
 
-    def show_pass_screen(self, val, programmatic=False):
-        """Screen 3 — PASS Result (Solid Green background bleed, large check icon, bottom details card)"""
-        self.is_active = False
-        self.clear_container(bg_color="#00A86B")
+    def update_progress_and_labels(self):
+        """Update top bar progress and bottom white card list of sample results."""
+        if not hasattr(self, 'lbl_progress') or not self.lbl_progress:
+            return
+            
+        # 1. Update Top Bar Progress text
+        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx + 1, m=self.test_def.num_samples)}"
+        self.lbl_progress.configure(text=prog_text.upper())
         
-        # Grid layout
-        self.container.grid_columnconfigure(0, weight=1)
-        self.container.grid_rowconfigure(0, weight=3) # Top outcome
-        self.container.grid_rowconfigure(1, weight=2) # Bottom details card
-        
-        # Top banner labels content
-        top_content = ctk.CTkFrame(self.container, fg_color="transparent")
-        top_content.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        top_content.grid_columnconfigure(0, weight=1)
-        top_content.grid_rowconfigure((0, 1, 2, 3), weight=1)
-        
-        # Show "Test X of Y" progress (correct dynamic parameters)
-        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx, m=self.test_def.num_samples)}"
-        lbl_prog = ctk.CTkLabel(
-            top_content,
-            text=prog_text.upper(),
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="white"
-        )
-        lbl_prog.grid(row=0, column=0, sticky="s", pady=(10, 5))
-        
-        # Large check mark and PASS
-        lbl_status = ctk.CTkLabel(
-            top_content,
-            text="✓ PASS",
-            font=ctk.CTkFont(size=48, weight="bold"),
-            text_color="white"
-        )
-        lbl_status.grid(row=1, column=0, sticky="ew", pady=5)
-        
-        # Measured torque value
-        low = self.test_def.target_value - self.test_def.tolerance_minus
-        high = self.test_def.target_value + self.test_def.tolerance_plus
-        lbl_val = ctk.CTkLabel(
-            top_content,
-            text=f"{val:.2f} cNm  [{low:.2f} - {high:.2f}]",
-            font=ctk.CTkFont(size=24, weight="bold"),
-            text_color="white"
-        )
-        lbl_val.grid(row=2, column=0, sticky="n", pady=5)
-        
-        # Message: Within Specification
-        lbl_msg = ctk.CTkLabel(
-            top_content,
-            text=i18n.t("run.within_spec").upper(),
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color="white"
-        )
-        lbl_msg.grid(row=3, column=0, sticky="n", pady=5)
-        
-        # Bottom Details Area (white card)
-        bottom_area = ctk.CTkFrame(self.container, corner_radius=8, fg_color="white")
-        bottom_area.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
-        bottom_area.grid_columnconfigure(0, weight=2)
-        bottom_area.grid_columnconfigure(1, weight=1)
-        bottom_area.grid_rowconfigure(0, weight=1)
-        
-        # Left side: Results logs list
-        results_list_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
-        results_list_frame.grid(row=0, column=0, sticky="nsw", padx=30, pady=15)
-        
-        for idx in range(self.test_def.num_samples):
+        # 2. Update Bottom Card list details
+        for idx, lbl in enumerate(self.results_labels):
             if idx < len(self.measurements):
                 m_val = abs(self.measurements[idx])
                 is_sample_ok, _, _ = check_tolerance(
@@ -474,33 +408,62 @@ class TestRunnerView(ctk.CTkFrame):
                 line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: PENDING"
                 lbl_color = "gray40"
                 
-            lbl_line = ctk.CTkLabel(
-                results_list_frame,
-                text=line_text,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                text_color=lbl_color
-            )
-            lbl_line.pack(anchor="w", pady=2)
-            
-        # Right side: Large primary action button: Next Test
-        btn_next = ctk.CTkButton(
-            bottom_area,
-            text=i18n.t("run.next_test").upper(),
-            height=50,
-            width=200,
-            fg_color="#00A86B",
-            hover_color="#008E5A",
-            text_color="white",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=self.auto_advance_flow
-        )
-        btn_next.grid(row=0, column=1, sticky="e", padx=30, pady=15)
+            lbl.configure(text=line_text, text_color=lbl_color)
+
+    def show_pass_dialog(self, val, programmatic=False):
+        """Screen 3 — PASS Result (Centered dialog overlay directly on Measuring Screen, no screen switch)"""
+        self.is_active = False  # Temporarily pause measuring/polling
         
-        # Timer or auto advance
+        # Create overlay frame centered in the container
+        self.pass_overlay = ctk.CTkFrame(self.container, fg_color="#00A86B", corner_radius=12, border_width=2, border_color="white")
+        # Place centered overlay spanning measuring rows
+        self.pass_overlay.grid(row=1, column=0, rowspan=2, padx=40, pady=20)
+        
+        lbl_check = ctk.CTkLabel(
+            self.pass_overlay,
+            text="✓ PASS",
+            font=ctk.CTkFont(size=36, weight="bold"),
+            text_color="white"
+        )
+        lbl_check.pack(padx=60, pady=(25, 5))
+        
+        lbl_val = ctk.CTkLabel(
+            self.pass_overlay,
+            text=f"{val:.2f} cNm",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        )
+        lbl_val.pack(padx=60, pady=(0, 25))
+        
+        # Update bottom details card so the passed sample value is visible immediately
+        self.update_progress_and_labels()
+        
         if programmatic:
-            self.auto_advance_flow()
+            self.hide_pass_overlay_and_continue()
         else:
-            self.after(1500, self.auto_advance_flow)
+            self.after(2000, self.hide_pass_overlay_and_continue)
+
+    def hide_pass_overlay_and_continue(self):
+        """Hides the green PASS dialog overlay and resumes the next measurement stage."""
+        if hasattr(self, 'pass_overlay') and self.pass_overlay:
+            try:
+                self.pass_overlay.destroy()
+            except Exception:
+                pass
+            self.pass_overlay = None
+            
+        # Check if all samples of the test sequence are complete
+        if self.current_sample_idx >= self.test_def.num_samples:
+            self.finish_test()
+        else:
+            # Resume measuring/polling
+            self.is_active = True
+            self.reset_sensor_peak()
+            self.update_progress_and_labels()
+
+    def show_pass_screen(self, val, programmatic=False):
+        """Mock method for test suite compatibility - routes to dialog overlay."""
+        self.show_pass_dialog(val, programmatic=programmatic)
 
     def show_fail_screen(self, val):
         """Screen 4 — FAIL Result (Solid Red background bleed, large warning icon, bottom details card)"""
