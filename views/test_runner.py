@@ -130,7 +130,9 @@ class TestRunnerView(ctk.CTkFrame):
         btn.pack(pady=10)
 
     def db_start_session(self):
-        """Create a session entry in the database."""
+        """Create a session entry in the database (idempotent — only runs once)."""
+        if self.session_id is not None:
+            return  # Already started — do not create a duplicate session
         self.session_id = self.app.db.start_test_session(
             driver_id=self.driver.id,
             test_def_id=self.test_def.id,

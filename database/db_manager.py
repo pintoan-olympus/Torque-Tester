@@ -1178,13 +1178,19 @@ class DatabaseManager:
                             r["operator_name"], r["sample_number"], f"{r['measured_value']:.2f}", r["sample_result"], r["sample_timestamp"]
                         ])
             
-            # 2. Perform table clears
+            # 2. Perform table clears (VACUUM must be outside any transaction)
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM test_measurements")
                 cursor.execute("DELETE FROM test_sessions")
-                cursor.execute("VACUUM")
+                cursor.execute("DELETE FROM battery_sessions")
                 conn.commit()
+
+            # VACUUM must run outside any transaction context
+            import sqlite3 as _sqlite3
+            _vacuum_conn = _sqlite3.connect(self.db_config.get("sqlite_path") or str(config.DB_PATH))
+            _vacuum_conn.execute("VACUUM")
+            _vacuum_conn.close()
                 
             return True, f"Successfully backed up {len(rows)} records and cleared all test history tables."
         except Exception as e:
