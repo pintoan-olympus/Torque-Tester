@@ -265,7 +265,7 @@ class TestRunnerView(ctk.CTkFrame):
         high = self.test_def.target_value + self.test_def.tolerance_plus
         lbl_limits = ctk.CTkLabel(
             top_bar,
-            text=f"LIMITS: {low:.2f} - {high:.2f} cNm",
+            text=f"{i18n.t('run.limits').upper()}: {low:.2f} - {high:.2f} cNm",
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color="gray60"
         )
@@ -298,7 +298,7 @@ class TestRunnerView(ctk.CTkFrame):
         # Acceptable range badge
         lbl_spec_badge = ctk.CTkLabel(
             status_card,
-            text=f"TARGET: {self.test_def.target_value:.2f} cNm",
+            text=f"{i18n.t('run.target').upper()}: {self.test_def.target_value:.2f} cNm",
             fg_color="gray25",
             corner_radius=6,
             padx=15,
@@ -331,46 +331,23 @@ class TestRunnerView(ctk.CTkFrame):
         )
         self.peak_lbl.grid(row=0, column=1, padx=20, pady=10)
         
-        # Controls Frame (Large buttons)
+        # Controls Frame (Large centered button)
         controls_frame = ctk.CTkFrame(self.container, fg_color="transparent")
         controls_frame.grid(row=3, column=0, sticky="ew", padx=40, pady=15)
-        controls_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        
-        self.capture_btn = ctk.CTkButton(
-            controls_frame,
-            text=i18n.t("run.capture_btn").upper(),
-            height=55,
-            fg_color="#00A86B",
-            hover_color="#008E5A",
-            text_color="white",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            command=self.capture_sample
-        )
-        self.capture_btn.grid(row=0, column=0, padx=5, sticky="ew")
-        
-        self.reset_btn = ctk.CTkButton(
-            controls_frame,
-            text=i18n.t("run.reset_peak").upper(),
-            height=55,
-            fg_color="gray25",
-            hover_color="gray35",
-            text_color="white",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            command=self.reset_sensor_peak
-        )
-        self.reset_btn.grid(row=0, column=1, padx=5, sticky="ew")
+        controls_frame.grid_columnconfigure(0, weight=1)
         
         btn_abort = ctk.CTkButton(
             controls_frame,
-            text="ABORT",
+            text=i18n.t("run.abort", default="ABORT").upper(),
             height=55,
+            width=260,
             fg_color="red4",
             hover_color="red3",
             text_color="white",
             font=ctk.CTkFont(size=15, weight="bold"),
             command=self.abort_test
         )
-        btn_abort.grid(row=0, column=2, padx=5, sticky="ew")
+        btn_abort.pack(pady=5, anchor="center")
 
         # Hidden Checkbox for auto-capture snapback state persistence
         self.auto_capture_cb = ctk.CTkCheckBox(self.container, variable=self.auto_capture_var)

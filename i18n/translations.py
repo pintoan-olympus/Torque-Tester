@@ -115,10 +115,10 @@ TRANSLATIONS = {
         "run.save_return": "Save & Return to Menu",
         "run.retry": "Retry This Test",
         "run.battery_completed": "Battery Completed ({n} of {m})",
-        "run.battery_success": "(Bateria de testes passou com sucesso)",
-        "run.battery_fail_warning": "(Reportar a falha ao supervisor)",
-        "run.resultado_idx": "Resultado {idx}",
-        "run.resultado_idx_skipped": "Resultado {idx} (SKIPPED)",
+        "run.battery_success": "Battery test sequence passed successfully",
+        "run.battery_fail_warning": "Report failure to supervisor",
+        "run.resultado_idx": "Result {idx}",
+        "run.resultado_idx_skipped": "Result {idx} (SKIPPED)",
         "run.torque_test": "Torque Test",
         "run.within_spec": "Within Specification",
         "run.out_of_spec": "Out of Specification",
@@ -133,6 +133,8 @@ TRANSLATIONS = {
         "run.bench": "Bench",
         "run.date": "Date / Time",
         "run.status": "Status",
+        "run.limits": "Limits",
+        "run.target": "Target",
         
         # Test History
         "hist.title": "Torque Verification History",
@@ -281,6 +283,8 @@ TRANSLATIONS = {
         "run.bench": "Bancada",
         "run.date": "Data / Hora",
         "run.status": "Estado",
+        "run.limits": "Limites",
+        "run.target": "Alvo",
         
         # Test History
         "hist.title": "Histórico de Verificação de Torque",
