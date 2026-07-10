@@ -234,10 +234,6 @@ class TestRunnerView(ctk.CTkFrame):
         """Screen 2 — Test Running (Dark background, live measurement, direction animation, bottom sample results card)"""
         self.clear_container(bg_color="#151515")
         self.is_active = True
-        
-        # Start DB Session if not already started
-        if self.session_id is None:
-            self.db_start_session()
             
         # Grid weights
         self.container.grid_columnconfigure(0, weight=1)
@@ -767,7 +763,7 @@ class TestRunnerView(ctk.CTkFrame):
                 # Snap back
                 if abs_current < self.tracked_peak * 0.85 and (self.tracked_peak - abs_current >= 0.5):
                     self.auto_capture_state = "CAPTURED"
-                    self.capture_sample(self.tracked_peak)
+                    self.capture_sample(self.tracked_peak, programmatic=False)
             elif self.auto_capture_state == "CAPTURED":
                 if abs_current < reset_threshold:
                     self.auto_capture_state = "IDLE"
@@ -791,9 +787,9 @@ class TestRunnerView(ctk.CTkFrame):
         """Mock method for test suite compatibility."""
         self.show_measuring_screen()
 
-    def capture_sample(self, val=None):
-        # Allow programmatic test overrides (where val is passed) to bypass is_active check
-        is_programmatic = (val is not None)
+    def capture_sample(self, val=None, programmatic=True):
+        # Allow programmatic test overrides (where val is passed and programmatic is True) to bypass is_active check
+        is_programmatic = programmatic
         if not is_programmatic and (not self.is_active or not self.app.sensor):
             return
             
@@ -809,14 +805,9 @@ class TestRunnerView(ctk.CTkFrame):
             self.test_def.tolerance_minus
         )
         
-        result_str = "OK" if is_ok else "NOK"
-        
         # Record sample
         self.measurements.append(signed_val)
         self.current_sample_idx += 1
-        
-        # Add measurement to DB
-        self.app.db.add_measurement(self.session_id, self.current_sample_idx, signed_val, result_str)
         
         # Show PASS/FAIL HMI result screen
         if is_ok:
@@ -853,6 +844,22 @@ class TestRunnerView(ctk.CTkFrame):
     def save_and_finish(self):
         """Finalize DB records and trigger completion callbacks."""
         self.is_active = False
+        
+        # Start DB Session on save
+        self.db_start_session()
+        
+        # Write all accumulated measurements to DB
+        for idx, signed_val in enumerate(self.measurements):
+            abs_val = abs(signed_val)
+            is_ok, _, _ = check_tolerance(
+                abs_val, 
+                self.test_def.target_value, 
+                self.test_def.tolerance_plus, 
+                self.test_def.tolerance_minus
+            )
+            result_str = "OK" if is_ok else "NOK"
+            self.app.db.add_measurement(self.session_id, idx + 1, signed_val, result_str)
+            
         self.app.db.complete_test_session(self.session_id, self.overall_result)
         log_action(
             self.app.user_manager.current_user.username, 
