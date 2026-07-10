@@ -343,6 +343,11 @@ class DashboardView(ctk.CTkFrame):
             self.app.selected_test_def = None
             self.on_battery_selected(self.battery_name_var.get())
 
+        # Re-pack the start button so it is always at the bottom
+        if hasattr(self, 'start_btn'):
+            self.start_btn.pack_forget()
+            self.start_btn.pack(pady=20, padx=20, fill="x")
+
     def on_battery_selected(self, battery_name):
         battery = self.battery_map.get(battery_name)
         self.app.selected_battery = battery
