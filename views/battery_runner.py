@@ -109,9 +109,15 @@ class BatteryRunnerView(ctk.CTkFrame):
             return
 
         # Record step result
+        avg_val = 0.0
+        if self.active_runner and self.active_runner.measurements:
+            measurements = [abs(m) for m in self.active_runner.measurements]
+            avg_val = sum(measurements) / len(measurements)
+
         self.step_results.append({
             "name": test_name,
-            "result": result
+            "result": result,
+            "avg": avg_val
         })
 
         if result == "FAIL":
@@ -119,7 +125,8 @@ class BatteryRunnerView(ctk.CTkFrame):
             for i in range(self.current_step + 1, len(self.steps)):
                 self.step_results.append({
                     "name": self.steps[i].test_def.name,
-                    "result": "SKIP"
+                    "result": "SKIP",
+                    "avg": 0.0
                 })
             
             # Complete battery session with FAIL
@@ -224,15 +231,17 @@ class BatteryRunnerView(ctk.CTkFrame):
 
         for idx, item in enumerate(self.step_results):
             res = item["result"]
+            avg = item.get("avg", 0.0)
+            avg_str = f"{avg:.2f}"
             if res == "PASS":
                 color = "#00A86B"
-                res_line = f"{i18n.t('run.resultado_idx', idx=idx+1)}"
+                res_line = i18n.t("run.test_pass_avg", idx=idx+1, avg=avg_str)
             elif res == "FAIL":
                 color = "#FF0000"
-                res_line = f"{i18n.t('run.resultado_idx', idx=idx+1)}"
+                res_line = i18n.t("run.test_fail_avg", idx=idx+1, avg=avg_str)
             else:
                 color = "gray40"
-                res_line = f"{i18n.t('run.resultado_idx_skipped', idx=idx+1)}"
+                res_line = i18n.t("run.test_skipped", idx=idx+1)
 
             lbl_res = ctk.CTkLabel(
                 results_list_frame,
