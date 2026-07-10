@@ -153,6 +153,7 @@ class TestRunnerView(ctk.CTkFrame):
     def show_start_screen(self):
         """Screen 1 — Start Screen (Neutral background, large Set Torque message)"""
         self.is_active = False
+        self.app.set_navigation_state("normal")
         self.clear_container(bg_color="gray95")
         
         # Grid weights for vertical centering
@@ -235,6 +236,7 @@ class TestRunnerView(ctk.CTkFrame):
         """Screen 2 — Test Running (Dark background, live measurement, direction animation, bottom sample results card)"""
         self.clear_container(bg_color="#151515")
         self.is_active = True
+        self.app.set_navigation_state("disabled")
             
         # Grid weights
         self.container.grid_columnconfigure(0, weight=1)
@@ -465,6 +467,7 @@ class TestRunnerView(ctk.CTkFrame):
     def show_fail_screen(self, val):
         """Screen 4 — FAIL Result (Solid Red background bleed, large warning icon, bottom details card)"""
         self.is_active = False
+        self.app.set_navigation_state("normal")
         self.clear_container(bg_color="#FF0000")
         
         # Grid layout
@@ -594,6 +597,7 @@ class TestRunnerView(ctk.CTkFrame):
     def show_final_summary_screen(self, overall_result, ok_count):
         """Screen 5 — Final Summary (Solid background bleed based on result)"""
         self.is_active = False
+        self.app.set_navigation_state("normal")
         bg_color = "#00A86B" if overall_result == "PASS" else "#FF0000"
         self.clear_container(bg_color=bg_color)
         
@@ -845,6 +849,7 @@ class TestRunnerView(ctk.CTkFrame):
     def save_and_finish(self):
         """Finalize DB records and trigger completion callbacks."""
         self.is_active = False
+        self.app.set_navigation_state("normal")
         
         # Start DB Session on save
         self.db_start_session()
@@ -903,6 +908,7 @@ class TestRunnerView(ctk.CTkFrame):
 
     def return_to_dashboard(self):
         self.is_active = False
+        self.app.set_navigation_state("normal")
         self.app.selected_driver = None
         self.app.selected_test_def = None
         self.app.selected_battery = None

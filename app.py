@@ -232,11 +232,37 @@ class TorqueTesterApp(ctk.CTk):
         self.main_content_frame.grid_columnconfigure(0, weight=1)
         self.main_content_frame.grid_rowconfigure(0, weight=1)
 
+    def is_test_running(self) -> bool:
+        if not self.current_view:
+            return False
+        from views.test_runner import TestRunnerView
+        from views.battery_runner import BatteryRunnerView
+        if isinstance(self.current_view, TestRunnerView) and self.current_view.is_active:
+            return True
+        if isinstance(self.current_view, BatteryRunnerView):
+            if self.current_view.active_runner and self.current_view.active_runner.is_active:
+                return True
+        return False
+
+    def set_navigation_state(self, state: str):
+        """Set state ('normal' or 'disabled') for all sidebar navigation elements."""
+        if hasattr(self, 'nav_buttons') and self.nav_buttons:
+            for btn in self.nav_buttons.values():
+                btn.configure(state=state)
+
     def show_view(self, view_class: Type[ctk.CTkFrame], **kwargs):
         """Switch current view inside main content frame."""
         if not self.main_content_frame:
             return
             
+        if self.is_test_running():
+            from tkinter import messagebox
+            messagebox.showwarning(
+                i18n.t("run.test_running_title", default="Test in Progress"),
+                i18n.t("run.test_running_msg", default="Please complete or abort the current test before switching screens.")
+            )
+            return
+
         # Clean current view
         if self.current_view:
             self.current_view.destroy()
@@ -255,6 +281,13 @@ class TorqueTesterApp(ctk.CTk):
 
     def logout(self):
         """Handle logout and clean up state."""
+        if self.is_test_running():
+            from tkinter import messagebox
+            messagebox.showwarning(
+                i18n.t("run.test_running_title", default="Test in Progress"),
+                i18n.t("run.test_running_msg", default="Please complete or abort the current test before switching screens.")
+            )
+            return
         self.user_manager.logout()
         self.selected_workbench = ""
         self.selected_driver = None
@@ -351,6 +384,14 @@ class TorqueTesterApp(ctk.CTk):
 
     def on_close(self):
         """Perform cleanup actions on window closing."""
+        if self.is_test_running():
+            from tkinter import messagebox
+            confirm = messagebox.askyesno(
+                i18n.t("run.exit_confirm_title", default="Exit Confirmation"),
+                i18n.t("run.exit_confirm_msg", default="A test is currently in progress. Are you sure you want to exit? Unsaved results will be lost.")
+            )
+            if not confirm:
+                return
         logger.info("Closing application. Cleaning up resources...")
         for s in self.sensors:
             if s:

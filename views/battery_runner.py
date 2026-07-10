@@ -161,6 +161,7 @@ class BatteryRunnerView(ctk.CTkFrame):
         if self.active_runner:
             self.active_runner.destroy()
             self.active_runner = None
+        self.app.set_navigation_state("normal")
 
         # Determine background color based on overall result
         bg_banner_color = "#FF0000" if overall_result == "FAIL" else "#00A86B"

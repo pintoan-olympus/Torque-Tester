@@ -139,6 +139,10 @@ TRANSLATIONS = {
         "run.limits": "Limits",
         "run.target": "Target",
         "run.rotate_until_click": "Rotate driver until click is heard",
+        "run.test_running_title": "Test in Progress",
+        "run.test_running_msg": "Please complete or abort the current test before switching screens.",
+        "run.exit_confirm_title": "Exit Confirmation",
+        "run.exit_confirm_msg": "A test is currently in progress. Are you sure you want to exit? Unsaved results will be lost.",
         
         # Test History
         "hist.title": "Torque Verification History",
@@ -293,6 +297,10 @@ TRANSLATIONS = {
         "run.limits": "Limites",
         "run.target": "Alvo",
         "run.rotate_until_click": "Rode o driver até ouvir o estalo",
+        "run.test_running_title": "Teste em Progresso",
+        "run.test_running_msg": "Por favor, conclua ou aborte o teste atual antes de mudar de ecrã.",
+        "run.exit_confirm_title": "Confirmação de Saída",
+        "run.exit_confirm_msg": "Um teste está atualmente em progresso. Tem a certeza de que deseja sair? Os resultados não guardados serão perdidos.",
         
         # Test History
         "hist.title": "Histórico de Verificação de Torque",
