@@ -39,13 +39,15 @@ class DirectionAnimation(ctk.CTkCanvas):
             cx, cy = self.width // 2, self.height // 2
             r = min(self.width, self.height) // 3
             
-            # Spin angle
+            # Spin angle: Tkinter angles go counter-clockwise (positive).
+            # To animate Clockwise for CW: subtract angle.
+            # To animate Counter-Clockwise for CCW: add angle.
             if self.direction == "CW":
-                self.angle = (self.angle + 12) % 360
+                self.angle = (self.angle - 12) % 360
                 color = "#00A86B"  # Green
                 text_dir = "CW +"
             else:  # CCW
-                self.angle = (self.angle - 12) % 360
+                self.angle = (self.angle + 12) % 360
                 color = "#FF9F00"  # Orange/yellow
                 text_dir = "CCW -"
 
@@ -178,7 +180,7 @@ class TestRunnerView(ctk.CTkFrame):
         )
         btn_start.grid(row=3, column=0, pady=(20, 20))
         
-        # Recent test results section
+        # Recent test results section (History on start screen)
         recent_frame = ctk.CTkFrame(self.container, fg_color="gray90", corner_radius=8)
         recent_frame.grid(row=4, column=0, sticky="ew", padx=50, pady=(10, 20))
         recent_frame.grid_columnconfigure((0, 1, 2), weight=1)
@@ -216,7 +218,7 @@ class TestRunnerView(ctk.CTkFrame):
             logger.error(f"Error loading recent results: {e}")
 
     def show_measuring_screen(self):
-        """Screen 2 — Test Running (Dark background, live measurement & direction animation)"""
+        """Screen 2 — Test Running (Dark background, live measurement, direction animation, bottom sample results card)"""
         self.clear_container(bg_color="#151515")
         self.is_active = True
         
@@ -227,17 +229,17 @@ class TestRunnerView(ctk.CTkFrame):
         # Grid weights
         self.container.grid_columnconfigure(0, weight=1)
         self.container.grid_rowconfigure(0, weight=0)  # Top stats/progress
-        self.container.grid_rowconfigure(1, weight=1)  # Animated Canvas & limits
+        self.container.grid_rowconfigure(1, weight=1)  # Animated Canvas
         self.container.grid_rowconfigure(2, weight=1)  # Value / Status
-        self.container.grid_rowconfigure(3, weight=0)  # Capture / Reset / Abort
+        self.container.grid_rowconfigure(3, weight=1)  # Bottom white details card (Results during test)
         
         # Top Stats Bar (Touch friendly, high visibility)
         top_bar = ctk.CTkFrame(self.container, fg_color="transparent")
         top_bar.grid(row=0, column=0, sticky="ew", padx=20, pady=15)
         top_bar.grid_columnconfigure((0, 1, 2), weight=1)
         
-        # Progress: Test X of Y
-        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx + 1, total=self.test_def.num_samples)}"
+        # Progress: Test X of Y (correct dynamic parameters)
+        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx + 1, m=self.test_def.num_samples)}"
         lbl_progress = ctk.CTkLabel(
             top_bar,
             text=prog_text.upper(),
@@ -247,7 +249,6 @@ class TestRunnerView(ctk.CTkFrame):
         lbl_progress.grid(row=0, column=0, sticky="w")
         
         # Tester & Direction Identification
-                        # Handedness check
         is_lh = getattr(self.driver, 'handedness', 'right') == 'left'
         wrench_dir = "CCW -" if is_lh else "CW +"
         sensor_name = f"Sensor {self.test_def.default_tester_id or 'A'}"
@@ -331,23 +332,54 @@ class TestRunnerView(ctk.CTkFrame):
         )
         self.peak_lbl.grid(row=0, column=1, padx=20, pady=10)
         
-        # Controls Frame (Large centered button)
-        controls_frame = ctk.CTkFrame(self.container, fg_color="transparent")
-        controls_frame.grid(row=3, column=0, sticky="ew", padx=40, pady=15)
-        controls_frame.grid_columnconfigure(0, weight=1)
+        # Bottom Details Area (white card, displays current results list and Centered Abort button)
+        bottom_area = ctk.CTkFrame(self.container, corner_radius=8, fg_color="white")
+        bottom_area.grid(row=3, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        bottom_area.grid_columnconfigure(0, weight=2)
+        bottom_area.grid_columnconfigure(1, weight=1)
+        bottom_area.grid_rowconfigure(0, weight=1)
         
+        # Left side: Results logs list
+        results_list_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
+        results_list_frame.grid(row=0, column=0, sticky="nsw", padx=30, pady=15)
+        
+        for idx in range(self.test_def.num_samples):
+            if idx < len(self.measurements):
+                m_val = abs(self.measurements[idx])
+                is_sample_ok, _, _ = check_tolerance(
+                    m_val, 
+                    self.test_def.target_value, 
+                    self.test_def.tolerance_plus, 
+                    self.test_def.tolerance_minus
+                )
+                status_txt = "PASS" if is_sample_ok else "FAIL"
+                lbl_color = "#00A86B" if is_sample_ok else "#FF0000"
+                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: {m_val:.2f} cNm ({status_txt})"
+            else:
+                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: PENDING"
+                lbl_color = "gray40"
+                
+            lbl_line = ctk.CTkLabel(
+                results_list_frame,
+                text=line_text,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=lbl_color
+            )
+            lbl_line.pack(anchor="w", pady=2)
+            
+        # Right side: Abort button
         btn_abort = ctk.CTkButton(
-            controls_frame,
+            bottom_area,
             text=i18n.t("run.abort", default="ABORT").upper(),
-            height=55,
-            width=260,
-            fg_color="red4",
-            hover_color="red3",
+            height=50,
+            width=200,
+            fg_color="#FF0000",
+            hover_color="#D32F2F",
             text_color="white",
-            font=ctk.CTkFont(size=15, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),
             command=self.abort_test
         )
-        btn_abort.pack(pady=5, anchor="center")
+        btn_abort.grid(row=0, column=1, sticky="e", padx=30, pady=15)
 
         # Hidden Checkbox for auto-capture snapback state persistence
         self.auto_capture_cb = ctk.CTkCheckBox(self.container, variable=self.auto_capture_var)
@@ -361,67 +393,108 @@ class TestRunnerView(ctk.CTkFrame):
         self.trigger_simulated_torque()
 
     def show_pass_screen(self, val, programmatic=False):
-        """Screen 3 — PASS Result (Solid Green background bleed, large check icon)"""
+        """Screen 3 — PASS Result (Solid Green background bleed, large check icon, bottom details card)"""
         self.is_active = False
         self.clear_container(bg_color="#00A86B")
         
-        # Grid weights
+        # Grid layout
         self.container.grid_columnconfigure(0, weight=1)
-        self.container.grid_rowconfigure((0, 4), weight=1)
-        self.container.grid_rowconfigure((1, 2, 3), weight=2)
+        self.container.grid_rowconfigure(0, weight=3) # Top outcome
+        self.container.grid_rowconfigure(1, weight=2) # Bottom details card
         
-        # Show "Test X of Y" progress
-        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx, total=self.test_def.num_samples)}"
+        # Top banner labels content
+        top_content = ctk.CTkFrame(self.container, fg_color="transparent")
+        top_content.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        top_content.grid_columnconfigure(0, weight=1)
+        top_content.grid_rowconfigure((0, 1, 2, 3), weight=1)
+        
+        # Show "Test X of Y" progress (correct dynamic parameters)
+        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx, m=self.test_def.num_samples)}"
         lbl_prog = ctk.CTkLabel(
-            self.container,
+            top_content,
             text=prog_text.upper(),
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color="white"
         )
-        lbl_prog.grid(row=0, column=0, pady=10)
+        lbl_prog.grid(row=0, column=0, sticky="s", pady=(10, 5))
         
         # Large check mark and PASS
         lbl_status = ctk.CTkLabel(
-            self.container,
+            top_content,
             text="✓ PASS",
-            font=ctk.CTkFont(size=64, weight="bold"),
+            font=ctk.CTkFont(size=48, weight="bold"),
             text_color="white"
         )
-        lbl_status.grid(row=1, column=0, pady=5)
+        lbl_status.grid(row=1, column=0, sticky="ew", pady=5)
         
         # Measured torque value
         low = self.test_def.target_value - self.test_def.tolerance_minus
         high = self.test_def.target_value + self.test_def.tolerance_plus
         lbl_val = ctk.CTkLabel(
-            self.container,
+            top_content,
             text=f"{val:.2f} cNm  [{low:.2f} - {high:.2f}]",
-            font=ctk.CTkFont(size=32, weight="bold"),
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color="white"
         )
-        lbl_val.grid(row=2, column=0, pady=5)
+        lbl_val.grid(row=2, column=0, sticky="n", pady=5)
         
         # Message: Within Specification
         lbl_msg = ctk.CTkLabel(
-            self.container,
+            top_content,
             text=i18n.t("run.within_spec").upper(),
-            font=ctk.CTkFont(size=22, weight="bold"),
+            font=ctk.CTkFont(size=18, weight="bold"),
             text_color="white"
         )
-        lbl_msg.grid(row=3, column=0, pady=5)
+        lbl_msg.grid(row=3, column=0, sticky="n", pady=5)
         
-        # Large primary action button: Next Test
+        # Bottom Details Area (white card)
+        bottom_area = ctk.CTkFrame(self.container, corner_radius=8, fg_color="white")
+        bottom_area.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        bottom_area.grid_columnconfigure(0, weight=2)
+        bottom_area.grid_columnconfigure(1, weight=1)
+        bottom_area.grid_rowconfigure(0, weight=1)
+        
+        # Left side: Results logs list
+        results_list_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
+        results_list_frame.grid(row=0, column=0, sticky="nsw", padx=30, pady=15)
+        
+        for idx in range(self.test_def.num_samples):
+            if idx < len(self.measurements):
+                m_val = abs(self.measurements[idx])
+                is_sample_ok, _, _ = check_tolerance(
+                    m_val, 
+                    self.test_def.target_value, 
+                    self.test_def.tolerance_plus, 
+                    self.test_def.tolerance_minus
+                )
+                status_txt = "PASS" if is_sample_ok else "FAIL"
+                lbl_color = "#00A86B" if is_sample_ok else "#FF0000"
+                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: {m_val:.2f} cNm ({status_txt})"
+            else:
+                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: PENDING"
+                lbl_color = "gray40"
+                
+            lbl_line = ctk.CTkLabel(
+                results_list_frame,
+                text=line_text,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=lbl_color
+            )
+            lbl_line.pack(anchor="w", pady=2)
+            
+        # Right side: Large primary action button: Next Test
         btn_next = ctk.CTkButton(
-            self.container,
+            bottom_area,
             text=i18n.t("run.next_test").upper(),
-            height=60,
-            width=280,
-            fg_color="white",
-            text_color="#00A86B",
-            hover_color="gray90",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            height=50,
+            width=200,
+            fg_color="#00A86B",
+            hover_color="#008E5A",
+            text_color="white",
+            font=ctk.CTkFont(size=14, weight="bold"),
             command=self.auto_advance_flow
         )
-        btn_next.grid(row=4, column=0, pady=30)
+        btn_next.grid(row=0, column=1, sticky="e", padx=30, pady=15)
         
         # Timer or auto advance
         if programmatic:
@@ -430,84 +503,124 @@ class TestRunnerView(ctk.CTkFrame):
             self.after(1500, self.auto_advance_flow)
 
     def show_fail_screen(self, val):
-        """Screen 4 — FAIL Result (Solid Red background bleed, large warning icon)"""
+        """Screen 4 — FAIL Result (Solid Red background bleed, large warning icon, bottom details card)"""
         self.is_active = False
         self.clear_container(bg_color="#FF0000")
         
-        # Grid weights
+        # Grid layout
         self.container.grid_columnconfigure(0, weight=1)
-        self.container.grid_rowconfigure((0, 4), weight=1)
-        self.container.grid_rowconfigure((1, 2, 3), weight=2)
+        self.container.grid_rowconfigure(0, weight=3) # Top outcome
+        self.container.grid_rowconfigure(1, weight=2) # Bottom details card
         
-        # Show "Test X of Y" progress
-        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx, total=self.test_def.num_samples)}"
+        # Top banner labels content
+        top_content = ctk.CTkFrame(self.container, fg_color="transparent")
+        top_content.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        top_content.grid_columnconfigure(0, weight=1)
+        top_content.grid_rowconfigure((0, 1, 2, 3), weight=1)
+        
+        # Show "Test X of Y" progress (correct dynamic parameters)
+        prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx, m=self.test_def.num_samples)}"
         lbl_prog = ctk.CTkLabel(
-            self.container,
+            top_content,
             text=prog_text.upper(),
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color="white"
         )
-        lbl_prog.grid(row=0, column=0, pady=10)
+        lbl_prog.grid(row=0, column=0, sticky="s", pady=(10, 5))
         
         # Large warning mark and FAIL
         lbl_status = ctk.CTkLabel(
-            self.container,
+            top_content,
             text="⚠ FAIL",
-            font=ctk.CTkFont(size=64, weight="bold"),
+            font=ctk.CTkFont(size=48, weight="bold"),
             text_color="white"
         )
-        lbl_status.grid(row=1, column=0, pady=5)
+        lbl_status.grid(row=1, column=0, sticky="ew", pady=5)
         
         # Measured torque value
         low = self.test_def.target_value - self.test_def.tolerance_minus
         high = self.test_def.target_value + self.test_def.tolerance_plus
         lbl_val = ctk.CTkLabel(
-            self.container,
+            top_content,
             text=f"{val:.2f} cNm  [{low:.2f} - {high:.2f}]",
-            font=ctk.CTkFont(size=32, weight="bold"),
+            font=ctk.CTkFont(size=24, weight="bold"),
             text_color="white"
         )
-        lbl_val.grid(row=2, column=0, pady=5)
+        lbl_val.grid(row=2, column=0, sticky="n", pady=5)
         
         # Message: Out of Specification
         lbl_msg = ctk.CTkLabel(
-            self.container,
+            top_content,
             text=i18n.t("run.out_of_spec").upper(),
-            font=ctk.CTkFont(size=22, weight="bold"),
+            font=ctk.CTkFont(size=18, weight="bold"),
             text_color="white"
         )
-        lbl_msg.grid(row=3, column=0, pady=5)
+        lbl_msg.grid(row=3, column=0, sticky="n", pady=5)
         
-        # Action Buttons frame
-        btn_frame = ctk.CTkFrame(self.container, fg_color="transparent")
-        btn_frame.grid(row=4, column=0, pady=30)
-        btn_frame.grid_columnconfigure((0, 1), weight=1)
+        # Bottom Details Area (white card)
+        bottom_area = ctk.CTkFrame(self.container, corner_radius=8, fg_color="white")
+        bottom_area.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        bottom_area.grid_columnconfigure(0, weight=2)
+        bottom_area.grid_columnconfigure(1, weight=1)
+        bottom_area.grid_rowconfigure(0, weight=1)
+        
+        # Left side: Results logs list
+        results_list_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
+        results_list_frame.grid(row=0, column=0, sticky="nsw", padx=30, pady=15)
+        
+        for idx in range(self.test_def.num_samples):
+            if idx < len(self.measurements):
+                m_val = abs(self.measurements[idx])
+                is_sample_ok, _, _ = check_tolerance(
+                    m_val, 
+                    self.test_def.target_value, 
+                    self.test_def.tolerance_plus, 
+                    self.test_def.tolerance_minus
+                )
+                status_txt = "PASS" if is_sample_ok else "FAIL"
+                lbl_color = "#00A86B" if is_sample_ok else "#FF0000"
+                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: {m_val:.2f} cNm ({status_txt})"
+            else:
+                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: PENDING"
+                lbl_color = "gray40"
+                
+            lbl_line = ctk.CTkLabel(
+                results_list_frame,
+                text=line_text,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=lbl_color
+            )
+            lbl_line.pack(anchor="w", pady=2)
+            
+        # Right side: HMI buttons
+        btn_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
+        btn_frame.grid(row=0, column=1, sticky="e", padx=30, pady=15)
         
         btn_repeat = ctk.CTkButton(
             btn_frame,
             text=i18n.t("run.repeat_test").upper(),
-            height=60,
-            width=220,
-            fg_color="white",
-            text_color="#FF0000",
-            hover_color="gray90",
-            font=ctk.CTkFont(size=15, weight="bold"),
+            height=45,
+            width=200,
+            fg_color="#FF0000",
+            hover_color="#D32F2F",
+            text_color="white",
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self.repeat_failed_sample
         )
-        btn_repeat.grid(row=0, column=0, padx=10)
+        btn_repeat.pack(pady=4)
         
         btn_continue = ctk.CTkButton(
             btn_frame,
             text=i18n.t("run.continue_summary").upper(),
-            height=60,
-            width=260,
-            fg_color="gray15",
+            height=45,
+            width=200,
+            fg_color="gray25",
             text_color="white",
-            hover_color="gray25",
-            font=ctk.CTkFont(size=15, weight="bold"),
+            hover_color="gray35",
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self.finish_test
         )
-        btn_continue.grid(row=0, column=1, padx=10)
+        btn_continue.pack(pady=4)
 
     def repeat_failed_sample(self):
         """Repeat current failed sample/step (removes last measurement entry)."""
@@ -583,16 +696,16 @@ class TestRunnerView(ctk.CTkFrame):
                 lbl_color = "#00A86B" if is_sample_ok else "#FF0000"
                 line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: {m_val:.2f} cNm ({status_txt})"
             else:
-                line_text = f"{i18n.t('run.resultado_idx_skipped', idx=idx+1)}"
+                line_text = f"{i18n.t('run.resultado_idx', idx=idx+1)}: PENDING"
                 lbl_color = "gray40"
                 
             lbl_line = ctk.CTkLabel(
                 results_list_frame,
                 text=line_text,
-                font=ctk.CTkFont(size=15, weight="bold"),
+                font=ctk.CTkFont(size=14, weight="bold"),
                 text_color=lbl_color
             )
-            lbl_line.pack(anchor="w", pady=3)
+            lbl_line.pack(anchor="w", pady=2)
             
         # Right side: Large HMI buttons
         btn_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
@@ -638,11 +751,12 @@ class TestRunnerView(ctk.CTkFrame):
         btn_abort.pack(pady=6)
 
     def auto_advance_flow(self):
-        """Check if all samples are done, or continue to instructions of next sample."""
+        """Check if all samples are done, or continue to measuring screen directly between samples."""
         if self.current_sample_idx >= self.test_def.num_samples:
             self.finish_test()
         else:
-            self.show_start_screen()
+            # Transition directly back to measuring screen (Screen 2) instead of start screen
+            self.show_measuring_screen()
 
     def poll_sensor(self):
         """Continually read current and peak values from the sensor."""
