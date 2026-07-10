@@ -101,6 +101,8 @@ class HardwareConfig:
         """Maps flat key like 'port_b' or 'custom_torque_max_c' to (section, actual_key)."""
         if flat_key == "tester_count":
             return "general", "tester_count"
+        if flat_key == "language":
+            return "app", "language"
             
         # Check suffixes like _b, _c, ..., _h
         for i in range(1, 8):  # b is index 1, c is 2, ..., h is 7

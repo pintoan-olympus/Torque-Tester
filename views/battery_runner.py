@@ -3,6 +3,7 @@ from datetime import datetime
 from utils.logger import get_logger, log_action
 from views.test_runner import TestRunnerView
 from views.components import ScrollableTable
+import i18n
 
 logger = get_logger()
 
@@ -86,7 +87,8 @@ class BatteryRunnerView(ctk.CTkFrame):
             app=self.app,
             step_number=self.current_step + 1,
             total_steps=len(self.steps),
-            on_step_complete=self.on_step_complete
+            on_step_complete=self.on_step_complete,
+            battery_session_id=self.battery_session_id
         )
         self.active_runner.grid(row=0, column=0, sticky="nsew")
 
@@ -173,9 +175,9 @@ class BatteryRunnerView(ctk.CTkFrame):
         # Step Text (e.g. Test 3 of 3 / Teste 3 de 3)
         if overall_result == "FAIL":
             failed_step_idx = next((i for i, r in enumerate(self.step_results) if r["result"] == "FAIL"), 0)
-            step_text = f"Teste {failed_step_idx + 1} de {len(self.steps)}"
+            step_text = i18n.t("run.teste_n_of_m", n=failed_step_idx + 1, m=len(self.steps))
         else:
-            step_text = f"Bateria Completa ({len(self.steps)} de {len(self.steps)})"
+            step_text = i18n.t("run.battery_completed", n=len(self.steps), m=len(self.steps))
 
         lbl_step = ctk.CTkLabel(
             top_banner_content,
@@ -196,9 +198,9 @@ class BatteryRunnerView(ctk.CTkFrame):
 
         # Supervisor Warning or Success Information
         if overall_result == "FAIL":
-            info_text = "(Reportar a falha ao supervisor)"
+            info_text = i18n.t("run.battery_fail_warning")
         else:
-            info_text = "(Bateria de testes passou com sucesso)"
+            info_text = i18n.t("run.battery_success")
 
         lbl_info = ctk.CTkLabel(
             top_banner_content,
@@ -224,13 +226,13 @@ class BatteryRunnerView(ctk.CTkFrame):
             res = item["result"]
             if res == "PASS":
                 color = "#00A86B"
-                res_line = f"Resultado {idx + 1}"
+                res_line = f"{i18n.t('run.resultado_idx', idx=idx+1)}"
             elif res == "FAIL":
                 color = "#FF0000"
-                res_line = f"Resultado {idx + 1}"
+                res_line = f"{i18n.t('run.resultado_idx', idx=idx+1)}"
             else:
                 color = "gray40"
-                res_line = f"Resultado {idx + 1} (SKIPPED)"
+                res_line = f"{i18n.t('run.resultado_idx_skipped', idx=idx+1)}"
 
             lbl_res = ctk.CTkLabel(
                 results_list_frame,
@@ -246,7 +248,7 @@ class BatteryRunnerView(ctk.CTkFrame):
 
         btn_save = ctk.CTkButton(
             bottom_area,
-            text="Save & Return to Menu",
+            text=i18n.t("run.save_return"),
             height=45,
             width=200,
             fg_color=btn_fg,

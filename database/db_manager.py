@@ -336,6 +336,7 @@ class DatabaseManager:
                     started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     completed_at DATETIME,
                     overall_result TEXT DEFAULT 'ABORTED',
+                    battery_session_id INTEGER,
                     FOREIGN KEY(driver_id) REFERENCES torque_drivers(id),
                     FOREIGN KEY(test_def_id) REFERENCES test_definitions(id),
                     FOREIGN KEY(operator_id) REFERENCES users(id)
@@ -400,6 +401,13 @@ class DatabaseManager:
                 logger.info("Database migration: Added default_battery_id column to torque_drivers table")
             except Exception:
                 # Column already exists, safe to ignore
+                pass
+
+            # Migration: add battery_session_id to test_sessions if not exists
+            try:
+                cursor.execute("ALTER TABLE test_sessions ADD COLUMN battery_session_id INTEGER")
+                logger.info("Database migration: Added battery_session_id column to test_sessions table")
+            except Exception:
                 pass
             
             # Seed default torque driver if empty
@@ -871,14 +879,14 @@ class DatabaseManager:
 
     # --- Test Session and Measurement Operations ---
     
-    def start_test_session(self, driver_id: int, test_def_id: int, workbench: str, operator_id: int) -> Optional[int]:
+    def start_test_session(self, driver_id: int, test_def_id: int, workbench: str, operator_id: int, battery_session_id: Optional[int] = None) -> Optional[int]:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    """INSERT INTO test_sessions (driver_id, test_def_id, workbench, operator_id, overall_result)
-                       VALUES (?, ?, ?, ?, 'ABORTED')""",
-                    (driver_id, test_def_id, workbench, operator_id)
+                    """INSERT INTO test_sessions (driver_id, test_def_id, workbench, operator_id, overall_result, battery_session_id)
+                       VALUES (?, ?, ?, ?, 'ABORTED', ?)""",
+                    (driver_id, test_def_id, workbench, operator_id, battery_session_id)
                 )
                 conn.commit()
                 session_id = cursor.lastrowid
@@ -922,45 +930,88 @@ class DatabaseManager:
             return False
 
     def get_test_history(self, driver_id_str: str = None, workbench: str = None, result: str = None) -> list[dict]:
-        """Fetch joined history data for presentation."""
+        """Fetch joined history data for presentation, grouping battery test sessions."""
         history = []
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
-                query = """
+                
+                # 1. Fetch standalone test sessions (where battery_session_id is NULL)
+                q_single = """
                     SELECT ts.id as session_id, ts.started_at, ts.completed_at, ts.overall_result, ts.workbench,
                            td.driver_id as driver_id_str, td.brand, td.model,
                            tdef.name as test_name, tdef.target_value,
-                           u.full_name as operator_name
+                           u.full_name as operator_name, 'single' as record_type, NULL as battery_session_id
                     FROM test_sessions ts
                     JOIN torque_drivers td ON ts.driver_id = td.id
                     JOIN test_definitions tdef ON ts.test_def_id = tdef.id
                     JOIN users u ON ts.operator_id = u.id
+                    WHERE ts.battery_session_id IS NULL
                 """
-                params = []
-                conditions = []
-                
+                params_single = []
+                conditions_single = []
                 if driver_id_str:
-                    conditions.append("td.driver_id LIKE ?")
-                    params.append(f"%{driver_id_str}%")
+                    conditions_single.append("td.driver_id LIKE ?")
+                    params_single.append(f"%{driver_id_str}%")
                 if workbench:
-                    conditions.append("ts.workbench LIKE ?")
-                    params.append(f"%{workbench}%")
+                    conditions_single.append("ts.workbench LIKE ?")
+                    params_single.append(f"%{workbench}%")
                 if result:
-                    conditions.append("ts.overall_result = ?")
-                    params.append(result)
+                    conditions_single.append("ts.overall_result = ?")
+                    params_single.append(result)
+                if conditions_single:
+                    q_single += " AND " + " AND ".join(conditions_single)
+                    
+                # 2. Fetch battery sessions
+                q_battery = """
+                    SELECT bs.id as session_id, bs.started_at, bs.completed_at, bs.overall_result, bs.workbench,
+                           td.driver_id as driver_id_str, td.brand, td.model,
+                           tb.name as test_name, 0.0 as target_value,
+                           u.full_name as operator_name, 'battery' as record_type, bs.id as battery_session_id
+                    FROM battery_sessions bs
+                    JOIN torque_drivers td ON bs.driver_id = td.id
+                    JOIN test_batteries tb ON bs.battery_id = tb.id
+                    JOIN users u ON bs.operator_id = u.id
+                """
+                params_battery = []
+                conditions_battery = []
+                if driver_id_str:
+                    conditions_battery.append("td.driver_id LIKE ?")
+                    params_battery.append(f"%{driver_id_str}%")
+                if workbench:
+                    conditions_battery.append("bs.workbench LIKE ?")
+                    params_battery.append(f"%{workbench}%")
+                if result:
+                    conditions_battery.append("bs.overall_result = ?")
+                    params_battery.append(result)
+                if conditions_battery:
+                    q_battery += " WHERE " + " AND ".join(conditions_battery)
+
+                cursor.execute(q_single, params_single)
+                rows_single = [dict(r) for r in cursor.fetchall()]
                 
-                if conditions:
-                    query += " WHERE " + " AND ".join(conditions)
+                cursor.execute(q_battery, params_battery)
+                rows_battery = [dict(r) for r in cursor.fetchall()]
                 
-                query += " ORDER BY ts.started_at DESC"
+                combined = rows_single + rows_battery
+                combined.sort(key=lambda x: x["started_at"] or "", reverse=True)
                 
-                cursor.execute(query, params)
-                for row in cursor.fetchall():
-                    history.append(dict(row))
+                # Enrich battery records with child step sessions details
+                for r in combined:
+                    if r["record_type"] == "battery":
+                        cursor.execute("""
+                            SELECT ts.id as session_id, ts.overall_result, tdef.name as test_name, ts.started_at, ts.completed_at
+                            FROM test_sessions ts
+                            JOIN test_definitions tdef ON ts.test_def_id = tdef.id
+                            WHERE ts.battery_session_id = ?
+                            ORDER BY ts.id ASC
+                        """, (r["session_id"],))
+                        r["steps"] = [dict(step) for step in cursor.fetchall()]
+                        
+                return combined
         except Exception as e:
-            logger.error(f"Error fetching test history: {e}")
-        return history
+            logger.error(f"Error fetching unified test/battery history: {e}")
+            return []
 
     def get_measurements_for_session(self, session_id: int) -> list[dict]:
         measurements = []

@@ -2,6 +2,7 @@ import customtkinter as ctk
 from datetime import datetime
 from utils.logger import get_logger
 from views.test_runner import TestRunnerView
+import i18n
 
 logger = get_logger()
 
@@ -22,12 +23,12 @@ class DashboardView(ctk.CTkFrame):
         self.setup_frame.grid_columnconfigure(0, weight=1)
         
         # Section Title
-        lbl = ctk.CTkLabel(self.setup_frame, text="TEST SESSION INITIALIZATION", font=ctk.CTkFont(size=16, weight="bold"))
+        lbl = ctk.CTkLabel(self.setup_frame, text=i18n.t("db.title").upper(), font=ctk.CTkFont(size=16, weight="bold"))
         lbl.pack(pady=20, padx=20, anchor="w")
         
         # 1. Select Driver
         drivers = self.app.db.get_all_drivers()
-        d_lbl = ctk.CTkLabel(self.setup_frame, text="1. Driver ID (Scan or Select)", font=ctk.CTkFont(size=12, weight="bold"))
+        d_lbl = ctk.CTkLabel(self.setup_frame, text=i18n.t("db.step1"), font=ctk.CTkFont(size=12, weight="bold"))
         d_lbl.pack(pady=(10, 2), padx=20, anchor="w")
         
         self.driver_ids = [d.driver_id for d in drivers if d.active]
@@ -43,7 +44,7 @@ class DashboardView(ctk.CTkFrame):
         self.driver_id_var.trace_add("write", self._on_driver_id_changed)
 
         # 2. Select Workbench
-        w_lbl = ctk.CTkLabel(self.setup_frame, text="2. Workbench Name / ID", font=ctk.CTkFont(size=12, weight="bold"))
+        w_lbl = ctk.CTkLabel(self.setup_frame, text=i18n.t("db.step2"), font=ctk.CTkFont(size=12, weight="bold"))
         w_lbl.pack(pady=(10, 2), padx=20, anchor="w")
         
         workbenches = sorted(list(set(d.workbench for d in drivers if d.workbench)))
@@ -61,7 +62,7 @@ class DashboardView(ctk.CTkFrame):
         self.workbench_combo.pack(pady=(0, 15), padx=20, anchor="w")
         
         # 3. Selection Mode (Single Test vs Battery Test)
-        m_lbl = ctk.CTkLabel(self.setup_frame, text="3. Selection Mode", font=ctk.CTkFont(size=12, weight="bold"))
+        m_lbl = ctk.CTkLabel(self.setup_frame, text=i18n.t("db.step3"), font=ctk.CTkFont(size=12, weight="bold"))
         m_lbl.pack(pady=(10, 2), padx=20, anchor="w")
 
         self.mode_var = ctk.StringVar(value="single")
@@ -70,7 +71,7 @@ class DashboardView(ctk.CTkFrame):
 
         self.radio_single = ctk.CTkRadioButton(
             self.mode_frame,
-            text="Single Test",
+            text=i18n.t("db.mode_single"),
             variable=self.mode_var,
             value="single",
             command=self.on_mode_changed
@@ -79,7 +80,7 @@ class DashboardView(ctk.CTkFrame):
 
         self.radio_battery = ctk.CTkRadioButton(
             self.mode_frame,
-            text="Battery Test",
+            text=i18n.t("db.mode_battery"),
             variable=self.mode_var,
             value="battery",
             command=self.on_mode_changed
@@ -87,7 +88,7 @@ class DashboardView(ctk.CTkFrame):
         self.radio_battery.pack(side="left")
 
         # 4. Select Test Procedure or Battery
-        self.procedure_lbl = ctk.CTkLabel(self.setup_frame, text="4. Select Test Template", font=ctk.CTkFont(size=12, weight="bold"))
+        self.procedure_lbl = ctk.CTkLabel(self.setup_frame, text=i18n.t("db.step4_test"), font=ctk.CTkFont(size=12, weight="bold"))
         self.procedure_lbl.pack(pady=(10, 2), padx=20, anchor="w")
         
         # Load Test Definitions
@@ -125,7 +126,7 @@ class DashboardView(ctk.CTkFrame):
         # Start button
         self.start_btn = ctk.CTkButton(
             self.setup_frame, 
-            text="Start Test Session", 
+            text=i18n.t("db.start_btn"), 
             height=40, 
             font=ctk.CTkFont(size=14, weight="bold"),
             state="disabled",
@@ -139,7 +140,7 @@ class DashboardView(ctk.CTkFrame):
         self.details_frame.grid_columnconfigure(0, weight=1)
         
         # Section Title
-        lbl2 = ctk.CTkLabel(self.details_frame, text="EQUIPMENT PROFILE", font=ctk.CTkFont(size=16, weight="bold"))
+        lbl2 = ctk.CTkLabel(self.details_frame, text=i18n.t("db.profile_title"), font=ctk.CTkFont(size=16, weight="bold"))
         lbl2.pack(pady=20, padx=20, anchor="w")
         
         # Card body with dynamic text
@@ -148,7 +149,7 @@ class DashboardView(ctk.CTkFrame):
         
         self.details_lbl = ctk.CTkLabel(
             self.info_card, 
-            text="Scan or select a Torque Driver ID to view details and calibration records.",
+            text=i18n.t("db.scan_prompt"),
             font=ctk.CTkFont(size=12),
             text_color="gray60",
             wraplength=280,
@@ -207,7 +208,7 @@ class DashboardView(ctk.CTkFrame):
             self.on_driver_selected(val)
         else:
             self.details_lbl.configure(
-                text="Driver ID not recognized or inactive.",
+                text=i18n.t("db.driver_unrecognized"),
                 text_color="red"
             )
             self.start_btn.configure(state="disabled")
@@ -226,14 +227,14 @@ class DashboardView(ctk.CTkFrame):
         
         # Check if calibration is overdue
         is_overdue = False
-        cal_status_text = "CALIBRATION OK"
+        cal_status_text = i18n.t("db.cal_ok")
         status_color = "green"
         if driver.calibration_due:
             try:
                 due = datetime.strptime(driver.calibration_due, "%Y-%m-%d").date()
                 if due < datetime.now().date():
                     is_overdue = True
-                    cal_status_text = "CALIBRATION OVERDUE!"
+                    cal_status_text = i18n.t("db.cal_overdue")
                     status_color = "red"
             except ValueError:
                 pass
@@ -257,18 +258,18 @@ class DashboardView(ctk.CTkFrame):
             result = last_run.get("overall_result", "N/A")
             last_test_str = f"{date_formatted} ({result})"
 
-        # Update Profile Details Card
+        # Update Profile Details Card using translations
         profile_text = (
-            f"ID: {driver.driver_id}\n"
-            f"Type: {driver.driver_type}\n"
-            f"Brand: {driver.brand or 'N/A'}\n"
-            f"Model: {driver.model or 'N/A'}\n"
-            f"Range: {driver.torque_min} - {driver.torque_max} cNm\n"
-            f"Default Workbench: {driver.workbench}\n\n"
-            f"Last Cal Date: {cal_date}\n"
-            f"Next Cal Due: {due_date}\n\n"
-            f"Cal Status: {cal_status_text}\n"
-            f"Last Test: {last_test_str}"
+            f"{i18n.t('db.lbl_id')}: {driver.driver_id}\n"
+            f"{i18n.t('db.lbl_type')}: {driver.driver_type}\n"
+            f"{i18n.t('db.lbl_brand')}: {driver.brand or 'N/A'}\n"
+            f"{i18n.t('db.lbl_model')}: {driver.model or 'N/A'}\n"
+            f"{i18n.t('db.lbl_range')}: {driver.torque_min} - {driver.torque_max} cNm\n"
+            f"{i18n.t('db.lbl_default_bench')}: {driver.workbench}\n\n"
+            f"{i18n.t('db.lbl_last_cal')}: {cal_date}\n"
+            f"{i18n.t('db.lbl_next_cal')}: {due_date}\n\n"
+            f"{i18n.t('db.lbl_cal_status')}: {cal_status_text}\n"
+            f"{i18n.t('db.lbl_last_test')}: {last_test_str}"
         )
         
         self.details_lbl.configure(
@@ -330,14 +331,14 @@ class DashboardView(ctk.CTkFrame):
     def on_mode_changed(self):
         mode = self.mode_var.get()
         if mode == "single":
-            self.procedure_lbl.configure(text="4. Select Test Template")
+            self.procedure_lbl.configure(text=i18n.t("db.step4_test"))
             self.battery_combo.pack_forget()
             self.test_combo.pack(pady=(0, 20), padx=20, anchor="w")
             self.app.selected_battery = None
             self.app.battery_items = []
             self.on_test_selected(self.test_name_var.get())
         else:
-            self.procedure_lbl.configure(text="4. Select Test Battery")
+            self.procedure_lbl.configure(text=i18n.t("db.step4_battery"))
             self.test_combo.pack_forget()
             self.battery_combo.pack(pady=(0, 20), padx=20, anchor="w")
             self.app.selected_test_def = None

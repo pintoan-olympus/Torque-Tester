@@ -2,6 +2,7 @@ import customtkinter as ctk
 from utils.logger import get_logger
 from utils.helpers import format_datetime
 from views.components import ScrollableTable
+import i18n
 
 logger = get_logger()
 
@@ -17,29 +18,29 @@ class TestHistoryView(ctk.CTkFrame):
         self.grid_rowconfigure(2, weight=1) # Table
         
         # 1. Header Row
-        header_lbl = ctk.CTkLabel(self, text="TEST RUN HISTORY", font=ctk.CTkFont(size=18, weight="bold"))
-        header_lbl.grid(row=0, column=0, pady=(10, 15), padx=10, sticky="w")
+        self.header_lbl = ctk.CTkLabel(self, text=i18n.t("hist.title").upper(), font=ctk.CTkFont(size=18, weight="bold"))
+        self.header_lbl.grid(row=0, column=0, pady=(10, 15), padx=10, sticky="w")
         
         # 2. Filters Row
         self.filters_frame = ctk.CTkFrame(self, height=70, corner_radius=8, fg_color="gray15")
         self.filters_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
         
         # Driver ID filter
-        d_lbl = ctk.CTkLabel(self.filters_frame, text="Driver ID:", font=ctk.CTkFont(size=11, weight="bold"))
+        d_lbl = ctk.CTkLabel(self.filters_frame, text=f"{i18n.t('hist.col_driver')}:", font=ctk.CTkFont(size=11, weight="bold"))
         d_lbl.grid(row=0, column=0, padx=(15, 5), pady=15, sticky="e")
         self.driver_filter = ctk.CTkEntry(self.filters_frame, placeholder_text="e.g. DRV-001", width=120)
         self.driver_filter.grid(row=0, column=1, padx=5, pady=15)
         self.driver_filter.bind("<KeyRelease>", lambda e: self.load_history())
         
         # Workbench filter
-        w_lbl = ctk.CTkLabel(self.filters_frame, text="Workbench:", font=ctk.CTkFont(size=11, weight="bold"))
+        w_lbl = ctk.CTkLabel(self.filters_frame, text=f"{i18n.t('hist.col_bench')}:", font=ctk.CTkFont(size=11, weight="bold"))
         w_lbl.grid(row=0, column=2, padx=10, pady=15, sticky="e")
         self.workbench_filter = ctk.CTkEntry(self.filters_frame, placeholder_text="e.g. Bench A", width=120)
         self.workbench_filter.grid(row=0, column=3, padx=5, pady=15)
         self.workbench_filter.bind("<KeyRelease>", lambda e: self.load_history())
         
         # Result filter
-        r_lbl = ctk.CTkLabel(self.filters_frame, text="Result:", font=ctk.CTkFont(size=11, weight="bold"))
+        r_lbl = ctk.CTkLabel(self.filters_frame, text=f"{i18n.t('hist.col_res')}:", font=ctk.CTkFont(size=11, weight="bold"))
         r_lbl.grid(row=0, column=4, padx=10, pady=15, sticky="e")
         self.result_filter = ctk.CTkComboBox(
             self.filters_frame, 
@@ -52,7 +53,7 @@ class TestHistoryView(ctk.CTkFrame):
         # Reset Filters button
         reset_btn = ctk.CTkButton(
             self.filters_frame, 
-            text="Reset", 
+            text=i18n.t("drv.cancel"), 
             width=70, 
             fg_color="gray30", 
             hover_color="gray40", 
@@ -63,8 +64,8 @@ class TestHistoryView(ctk.CTkFrame):
         # Export to CSV button
         export_btn = ctk.CTkButton(
             self.filters_frame, 
-            text="Export History", 
-            width=100, 
+            text=i18n.t("hist.export"), 
+            width=120, 
             fg_color="#1a7a3a", 
             hover_color="#145e2c", 
             command=self.export_history_to_csv
@@ -74,7 +75,15 @@ class TestHistoryView(ctk.CTkFrame):
         # 3. History Scrollable Table
         self.table = ScrollableTable(
             self,
-            headers=["Driver ID", "Workbench", "Operator", "Test Template", "Result", "Date/Time", "Details"],
+            headers=[
+                i18n.t("hist.col_driver"), 
+                i18n.t("hist.col_bench"), 
+                "Operator", 
+                i18n.t("hist.col_test"), 
+                i18n.t("hist.col_res"), 
+                i18n.t("hist.col_date"), 
+                i18n.t("hist.col_actions")
+            ],
             column_weights=[2, 2, 2, 3, 2, 3, 2],
             fg_color="gray15",
             corner_radius=8
@@ -110,25 +119,72 @@ class TestHistoryView(ctk.CTkFrame):
             res = record["overall_result"]
             res_color = "green" if res == "PASS" else ("red" if res == "FAIL" else "orange")
             
-            session_id = record["session_id"]
-            
-            # Setup cell action for Details button click
-            cell_commands = {
-                6: lambda sid=session_id: self.show_session_details_popup(sid)
-            }
+            # Setup cell action for Details button click based on type
+            cell_commands = {}
+            if record["record_type"] == "battery":
+                # For battery, show the list of steps in a custom popup
+                cell_commands[6] = lambda rec=record: self.show_battery_details_popup(rec)
+                display_name = f"🔋 {record['test_name']}"
+            else:
+                session_id = record["session_id"]
+                cell_commands[6] = lambda sid=session_id: self.show_session_details_popup(sid)
+                display_name = f"📋 {record['test_name']}"
             
             self.table.add_row(
                 [
                     record["driver_id_str"],
                     record["workbench"],
                     record["operator_name"],
-                    record["test_name"],
+                    display_name,
                     res,
                     format_datetime(record["started_at"]),
-                    "View"
+                    i18n.t("hist.view_steps")
                 ],
                 text_color=res_color,
                 cell_commands=cell_commands
+            )
+
+    def show_battery_details_popup(self, record):
+        """Display window overlay listing steps of a battery session."""
+        popup = ctk.CTkToplevel(self)
+        popup.title(f"Battery Details - Session {record['session_id']}")
+        popup.geometry("550x450")
+        popup.minsize(500, 350)
+        popup.transient(self.app)
+        popup.grab_set()
+        
+        popup.grid_columnconfigure(0, weight=1)
+        popup.grid_rowconfigure(1, weight=1)
+        
+        lbl = ctk.CTkLabel(
+            popup, 
+            text=f"BATTERY STEPS: {record['test_name'].upper()}", 
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        lbl.grid(row=0, column=0, pady=15, padx=20, sticky="w")
+        
+        pop_table = ScrollableTable(
+            popup,
+            headers=["Sequence #", "Test Name", "Result", "Details"],
+            column_weights=[1, 3, 2, 2],
+            fg_color="gray15"
+        )
+        pop_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 15))
+        
+        steps = record.get("steps") or []
+        for idx, step in enumerate(steps):
+            r = step["overall_result"]
+            c = "green" if r == "PASS" else ("red" if r == "FAIL" else "gray")
+            
+            step_sid = step["session_id"]
+            cell_cmds = {
+                3: lambda sid=step_sid: self.show_session_details_popup(sid)
+            }
+            
+            pop_table.add_row(
+                [f"#{idx + 1}", step["test_name"], r, i18n.t("hist.view_steps")],
+                text_color=c,
+                cell_commands=cell_cmds
             )
 
     def show_session_details_popup(self, session_id):
@@ -140,14 +196,12 @@ class TestHistoryView(ctk.CTkFrame):
         popup.title(f"Test Details - Session {session_id}")
         popup.geometry("450x450")
         popup.minsize(400, 350)
-        popup.transient(self.app) # Keeps it on top of parent window
-        popup.grab_set() # Focus lock
+        popup.transient(self.app)
+        popup.grab_set()
         
         popup.grid_columnconfigure(0, weight=1)
         popup.grid_rowconfigure(1, weight=1)
-        popup.grid_rowconfigure(2, weight=0)
         
-        # Header
         lbl = ctk.CTkLabel(
             popup, 
             text=f"MEASUREMENTS FOR TEST #{session_id}", 
@@ -155,7 +209,6 @@ class TestHistoryView(ctk.CTkFrame):
         )
         lbl.grid(row=0, column=0, pady=15, padx=20, sticky="w")
         
-        # Table of samples
         pop_table = ScrollableTable(
             popup,
             headers=["Sample #", "Measured Value (cNm)", "Result Check"],
@@ -213,22 +266,50 @@ class TestHistoryView(ctk.CTkFrame):
                     "Model", 
                     "Workbench", 
                     "Operator", 
-                    "Test Procedure", 
+                    "Test / Battery Procedure", 
                     "Overall Result", 
                     "Date/Time"
                 ])
                 for r in history_data:
-                    writer.writerow([
-                        r["session_id"],
-                        r["driver_id_str"],
-                        r["brand"] or "",
-                        r["model"] or "",
-                        r["workbench"],
-                        r["operator_name"],
-                        r["test_name"],
-                        r["overall_result"],
-                        format_datetime(r["started_at"])
-                    ])
+                    if r["record_type"] == "battery":
+                        # Write parent battery row
+                        writer.writerow([
+                            r["session_id"],
+                            r["driver_id_str"],
+                            r["brand"] or "",
+                            r["model"] or "",
+                            r["workbench"],
+                            r["operator_name"],
+                            f"Bateria: {r['test_name']}",
+                            r["overall_result"],
+                            format_datetime(r["started_at"])
+                        ])
+                        # Write steps sequentially grouped right under it
+                        for idx, step in enumerate(r.get("steps") or []):
+                            writer.writerow([
+                                f"Step {idx+1}",
+                                "",
+                                "",
+                                "",
+                                "",
+                                "",
+                                f"  ↳ {step['test_name']}",
+                                step["overall_result"],
+                                format_datetime(step["started_at"])
+                            ])
+                    else:
+                        # Write single standalone test row
+                        writer.writerow([
+                            r["session_id"],
+                            r["driver_id_str"],
+                            r["brand"] or "",
+                            r["model"] or "",
+                            r["workbench"],
+                            r["operator_name"],
+                            f"Teste: {r['test_name']}",
+                            r["overall_result"],
+                            format_datetime(r["started_at"])
+                        ])
             messagebox.showinfo("Export History", f"Successfully exported {len(history_data)} records to {file_path}")
             logger.info(f"Test run history successfully exported to CSV: {file_path}")
         except Exception as e:

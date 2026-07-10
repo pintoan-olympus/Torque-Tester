@@ -4,6 +4,7 @@ from utils.logger import get_logger, log_action
 from utils.helpers import format_date
 from views.components import ScrollableTable
 from database.models import TorqueDriver
+import i18n
 
 logger = get_logger()
 

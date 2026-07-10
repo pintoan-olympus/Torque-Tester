@@ -9,9 +9,7 @@ from sensor.sensor_interface import TorqueSensorInterface
 from sensor.simulator import TorqueSensorSimulator
 from sensor.serial_comm import TorqueSensorSerial
 from hardware_config import HardwareConfig
-
-# Import views lazily inside the show_view or login handlers to avoid circular imports
-# but we can structure import statements carefully.
+import i18n
 
 logger = get_logger()
 
@@ -51,6 +49,8 @@ class TorqueTesterApp(ctk.CTk):
         self.db = db_manager
         self.user_manager = user_manager
         self.hw_config = HardwareConfig()
+        saved_lang = self.hw_config.get_setting("language", "en")
+        i18n.set_language(saved_lang)
         self.sensors: list[TorqueSensorInterface] = []
         self.selected_workbench = ""
         self.selected_driver = None
@@ -143,13 +143,17 @@ class TorqueTesterApp(ctk.CTk):
         # User details card
         user = self.user_manager.current_user
         role_name = config.ACCESS_LEVEL_NAMES.get(user.access_level, "Operator")
+        translated_role = i18n.t(f"role.{role_name.lower()}")
+        if translated_role == f"role.{role_name.lower()}":
+            translated_role = role_name
+            
         user_card = ctk.CTkFrame(self.sidebar_frame, fg_color="gray15")
         user_card.pack(fill="x", padx=10, pady=(0, 20))
         
         user_name_lbl = ctk.CTkLabel(user_card, text=user.full_name, font=ctk.CTkFont(size=12, weight="bold"))
         user_name_lbl.pack(pady=(5, 0))
         
-        user_role_lbl = ctk.CTkLabel(user_card, text=role_name, text_color="gray60", font=ctk.CTkFont(size=10))
+        user_role_lbl = ctk.CTkLabel(user_card, text=translated_role, text_color="gray60", font=ctk.CTkFont(size=10))
         user_role_lbl.pack(pady=(0, 5))
         
         # Navigation Buttons definitions: (Label, ViewClass, RequiredAccess)
@@ -161,24 +165,24 @@ class TorqueTesterApp(ctk.CTk):
         from views.battery_setup import BatterySetupView
         from views.user_admin import UserAdminView
         from views.settings_view import SettingsView
-
+ 
         nav_items = [
-            ("Dashboard", DashboardView, config.ACCESS_OPERATOR),
-            ("Test Runner", TestRunnerView, config.ACCESS_OPERATOR),
-            ("Test History", TestHistoryView, config.ACCESS_OPERATOR),
-            ("Driver Database", DriverManagerView, config.ACCESS_SUPERVISOR),
-            ("Test Setup", TestSetupView, config.ACCESS_SUPERVISOR),
-            ("Battery Setup", BatterySetupView, config.ACCESS_ADMIN),
-            ("User Admin", UserAdminView, config.ACCESS_ADMIN),
-            ("Settings", SettingsView, config.ACCESS_OPERATOR),  # Everyone can view settings, admin edits
+            ("nav.dashboard", DashboardView, config.ACCESS_OPERATOR),
+            ("nav.test_runner", TestRunnerView, config.ACCESS_OPERATOR),
+            ("nav.history", TestHistoryView, config.ACCESS_OPERATOR),
+            ("nav.drivers", DriverManagerView, config.ACCESS_SUPERVISOR),
+            ("nav.test_setup", TestSetupView, config.ACCESS_SUPERVISOR),
+            ("nav.batteries", BatterySetupView, config.ACCESS_ADMIN),
+            ("nav.user_admin", UserAdminView, config.ACCESS_ADMIN),
+            ("nav.settings", SettingsView, config.ACCESS_OPERATOR),  # Everyone can view settings, admin edits
         ]
         
         self.nav_buttons = {}
-        for label, view_class, req_access in nav_items:
+        for label_key, view_class, req_access in nav_items:
             if self.user_manager.has_access(req_access):
                 btn = ctk.CTkButton(
                     self.sidebar_frame,
-                    text=label,
+                    text=i18n.t(label_key),
                     anchor="w",
                     fg_color="transparent",
                     text_color="gray80",
@@ -191,7 +195,7 @@ class TorqueTesterApp(ctk.CTk):
         # Logout button at bottom
         logout_btn = ctk.CTkButton(
             self.sidebar_frame,
-            text="Logout",
+            text=i18n.t("nav.logout"),
             anchor="w",
             fg_color="transparent",
             text_color="red2",
