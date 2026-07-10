@@ -153,73 +153,109 @@ class BatteryRunnerView(ctk.CTkFrame):
             self.active_runner.destroy()
             self.active_runner = None
 
-        # Build summary container
-        summary_frame = ctk.CTkFrame(self, corner_radius=12, fg_color="gray15")
+        # Determine background color based on overall result
+        bg_banner_color = "#FF0000" if overall_result == "FAIL" else "#00A86B"
+
+        # Build summary container frame with banner color as background
+        summary_frame = ctk.CTkFrame(self, corner_radius=12, fg_color=bg_banner_color)
         summary_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
-        summary_frame.grid_columnconfigure(0, weight=1)
-        summary_frame.grid_rowconfigure(2, weight=1)
-
-        # 1. Header banner
-        banner = ctk.CTkFrame(summary_frame, corner_radius=10)
-        banner.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 15))
         
-        if overall_result == "PASS":
-            banner.configure(fg_color="green")
-            title = ctk.CTkLabel(banner, text="🎉 BATTERY TEST PASSED", font=ctk.CTkFont(size=22, weight="bold"), text_color="white")
-            title.pack(pady=(15, 5))
-            sub = ctk.CTkLabel(banner, text=f"All {len(self.steps)} test procedures passed verification criteria successfully.", font=ctk.CTkFont(size=13), text_color="white")
-            sub.pack(pady=(0, 15))
+        summary_frame.grid_columnconfigure(0, weight=1)
+        summary_frame.grid_rowconfigure(0, weight=3) # banner area
+        summary_frame.grid_rowconfigure(1, weight=2) # bottom white card area
+
+        # 1. TOP BANNER LABELS (gridded directly in summary_frame row 0)
+        top_banner_content = ctk.CTkFrame(summary_frame, fg_color="transparent")
+        top_banner_content.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        top_banner_content.grid_columnconfigure(0, weight=1)
+        top_banner_content.grid_rowconfigure((0, 1, 2), weight=1)
+
+        # Step Text (e.g. Test 3 of 3 / Teste 3 de 3)
+        if overall_result == "FAIL":
+            failed_step_idx = next((i for i, r in enumerate(self.step_results) if r["result"] == "FAIL"), 0)
+            step_text = f"Teste {failed_step_idx + 1} de {len(self.steps)}"
         else:
-            banner.configure(fg_color="red4")
-            title = ctk.CTkLabel(banner, text="❌ BATTERY TEST FAILED", font=ctk.CTkFont(size=22, weight="bold"), text_color="white")
-            title.pack(pady=(15, 5))
-            sub = ctk.CTkLabel(banner, text="One or more test procedures in the battery did not pass.", font=ctk.CTkFont(size=13), text_color="white")
-            sub.pack(pady=(0, 5))
-            
-            warning_lbl = ctk.CTkLabel(
-                banner, 
-                text="⚠️ Report test result to supervisor. DO NOT USE THE DRIVER!",
-                font=ctk.CTkFont(size=14, weight="bold"),
-                text_color="red"
-            )
-            warning_lbl.pack(pady=(5, 15))
+            step_text = f"Bateria Completa ({len(self.steps)} de {len(self.steps)})"
 
-        # 2. Results table list
-        t_title = ctk.CTkLabel(summary_frame, text="TEST SEQUENCES STATUS SUMMARY", font=ctk.CTkFont(size=14, weight="bold"))
-        t_title.grid(row=1, column=0, sticky="w", padx=25, pady=(10, 5))
-
-        table = ScrollableTable(
-            summary_frame,
-            headers=["Sequence #", "Test Name", "Result"],
-            column_weights=[1, 4, 2],
-            fg_color="transparent"
+        lbl_step = ctk.CTkLabel(
+            top_banner_content,
+            text=step_text,
+            font=ctk.CTkFont(size=26, weight="bold"),
+            text_color="white"
         )
-        table.grid(row=2, column=0, sticky="nsew", padx=20, pady=10)
+        lbl_step.grid(row=0, column=0, pady=(20, 5), sticky="s")
+
+        # Result Text (PASS/FAIL)
+        lbl_result = ctk.CTkLabel(
+            top_banner_content,
+            text=overall_result,
+            font=ctk.CTkFont(size=54, weight="bold"),
+            text_color="white"
+        )
+        lbl_result.grid(row=1, column=0, pady=5, sticky="ew")
+
+        # Supervisor Warning or Success Information
+        if overall_result == "FAIL":
+            info_text = "(Reportar a falha ao supervisor)"
+        else:
+            info_text = "(Bateria de testes passou com sucesso)"
+
+        lbl_info = ctk.CTkLabel(
+            top_banner_content,
+            text=info_text,
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="white"
+        )
+        lbl_info.grid(row=2, column=0, pady=(5, 20), sticky="n")
+
+        # 2. BOTTOM DETAILS AREA (white card)
+        bottom_area = ctk.CTkFrame(summary_frame, corner_radius=8, fg_color="white")
+        bottom_area.grid(row=1, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        
+        bottom_area.grid_columnconfigure(0, weight=2)
+        bottom_area.grid_columnconfigure(1, weight=1)
+        bottom_area.grid_rowconfigure(0, weight=1)
+
+        # Left side: Results list
+        results_list_frame = ctk.CTkFrame(bottom_area, fg_color="transparent")
+        results_list_frame.grid(row=0, column=0, sticky="nsw", padx=30, pady=15)
 
         for idx, item in enumerate(self.step_results):
             res = item["result"]
             if res == "PASS":
-                color = "green"
-                res_disp = "✅ PASS"
+                color = "#00A86B"
+                res_line = f"Resultado {idx + 1}"
             elif res == "FAIL":
-                color = "red"
-                res_disp = "❌ FAIL"
+                color = "#FF0000"
+                res_line = f"Resultado {idx + 1}"
             else:
-                color = "gray60"
-                res_disp = "➖ SKIPPED"
-            table.add_row([f"{idx + 1}", item["name"], res_disp], text_color=color)
+                color = "gray40"
+                res_line = f"Resultado {idx + 1} (SKIPPED)"
 
-        # 3. Action button
-        btn = ctk.CTkButton(
-            summary_frame,
+            lbl_res = ctk.CTkLabel(
+                results_list_frame,
+                text=res_line,
+                font=ctk.CTkFont(size=16, weight="bold"),
+                text_color=color
+            )
+            lbl_res.pack(anchor="w", pady=4)
+
+        # Right side: Action Button (Save & Return to Menu)
+        btn_fg = "#FF0000" if overall_result == "FAIL" else "#00A86B"
+        btn_hover = "#D32F2F" if overall_result == "FAIL" else "#008E5A"
+
+        btn_save = ctk.CTkButton(
+            bottom_area,
             text="Save & Return to Menu",
             height=45,
-            fg_color="green" if overall_result == "PASS" else "red4",
-            hover_color="darkgreen" if overall_result == "PASS" else "red3",
-            font=ctk.CTkFont(size=14, weight="bold"),
+            width=200,
+            fg_color=btn_fg,
+            hover_color=btn_hover,
+            text_color="white",
+            font=ctk.CTkFont(size=13, weight="bold"),
             command=self.return_to_dashboard
         )
-        btn.grid(row=3, column=0, sticky="ew", padx=20, pady=20)
+        btn_save.grid(row=0, column=1, sticky="e", padx=30, pady=15)
 
     def return_to_dashboard(self):
         self.app.selected_driver = None
