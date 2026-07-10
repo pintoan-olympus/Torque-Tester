@@ -437,9 +437,11 @@ class TestRunnerView(ctk.CTkFrame):
         
         # Change rotation indicator to PASS display
         self.dir_anim.set_direction("PASS", val=val)
+        self.dir_anim.update()  # Force canvas repaint
         
         # Update logs list immediately
         self.update_progress_and_labels()
+        self.update()  # Force frame repaint
         
         if programmatic:
             self.hide_pass_overlay_and_continue()
@@ -588,6 +590,8 @@ class TestRunnerView(ctk.CTkFrame):
         if self.measurements:
             self.measurements.pop()
             self.current_sample_idx -= 1
+            if self.session_id:
+                self.app.db.delete_measurement(self.session_id, self.current_sample_idx + 1)
         self.show_measuring_screen()
 
     def show_final_summary_screen(self, overall_result, ok_count):

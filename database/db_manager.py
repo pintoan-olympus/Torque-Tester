@@ -912,6 +912,21 @@ class DatabaseManager:
             logger.error(f"Error adding measurement: {e}")
             return False
 
+    def delete_measurement(self, session_id: int, sample_number: int) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM test_measurements WHERE session_id = ? AND sample_number = ?",
+                    (session_id, sample_number)
+                )
+                conn.commit()
+                logger.debug(f"Deleted measurement for session {session_id}, sample {sample_number}")
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting measurement: {e}")
+            return False
+
     def complete_test_session(self, session_id: int, overall_result: str) -> bool:
         try:
             with self.get_connection() as conn:
