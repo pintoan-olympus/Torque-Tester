@@ -271,6 +271,7 @@ class DatabaseManager:
                     notes TEXT,
                     active BOOLEAN DEFAULT 1,
                     default_test_def_id INTEGER,
+                    default_battery_id INTEGER,
                     handedness TEXT DEFAULT 'right'
                 )
             """)
@@ -393,6 +394,14 @@ class DatabaseManager:
                 )
             """)
             
+            # Migration: add default_battery_id to torque_drivers if not exists
+            try:
+                cursor.execute("ALTER TABLE torque_drivers ADD COLUMN default_battery_id INTEGER")
+                logger.info("Database migration: Added default_battery_id column to torque_drivers table")
+            except Exception:
+                # Column already exists, safe to ignore
+                pass
+            
             # Seed default torque driver if empty
             cursor.execute("SELECT COUNT(*) FROM torque_drivers")
             if cursor.fetchone()[0] == 0:
@@ -502,14 +511,17 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 def_test = driver.default_test_def_id if driver.default_test_def_id != 0 else None
+                def_battery = getattr(driver, 'default_battery_id', None)
+                if def_battery == 0:
+                    def_battery = None
                 hand = getattr(driver, 'handedness', 'right')
                 cursor.execute(
                     """INSERT INTO torque_drivers 
-                       (driver_id, driver_type, brand, model, torque_min, torque_max, workbench, calibration_date, calibration_due, notes, active, default_test_def_id, handedness)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       (driver_id, driver_type, brand, model, torque_min, torque_max, workbench, calibration_date, calibration_due, notes, active, default_test_def_id, default_battery_id, handedness)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (driver.driver_id, driver.driver_type, driver.brand, driver.model,
                      driver.torque_min, driver.torque_max, driver.workbench,
-                     driver.calibration_date, driver.calibration_due, driver.notes, driver.active, def_test, hand)
+                     driver.calibration_date, driver.calibration_due, driver.notes, driver.active, def_test, def_battery, hand)
                 )
                 conn.commit()
                 new_id = cursor.lastrowid
@@ -540,6 +552,7 @@ class DatabaseManager:
                         notes=row["notes"],
                         active=bool(row["active"]),
                         default_test_def_id=row["default_test_def_id"] or 0,
+                        default_battery_id=row["default_battery_id"] if "default_battery_id" in row.keys() else None,
                         handedness=row["handedness"] if "handedness" in row.keys() else "right"
                     )
         except Exception as e:
@@ -567,6 +580,7 @@ class DatabaseManager:
                         notes=row["notes"],
                         active=bool(row["active"]),
                         default_test_def_id=row["default_test_def_id"] or 0,
+                        default_battery_id=row["default_battery_id"] if "default_battery_id" in row.keys() else None,
                         handedness=row["handedness"] if "handedness" in row.keys() else "right"
                     ))
         except Exception as e:
@@ -578,16 +592,19 @@ class DatabaseManager:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 def_test = driver.default_test_def_id if driver.default_test_def_id != 0 else None
+                def_battery = getattr(driver, 'default_battery_id', None)
+                if def_battery == 0:
+                    def_battery = None
                 hand = getattr(driver, 'handedness', 'right')
                 cursor.execute(
                     """UPDATE torque_drivers 
                        SET driver_id = ?, driver_type = ?, brand = ?, model = ?, 
                            torque_min = ?, torque_max = ?, workbench = ?, 
-                           calibration_date = ?, calibration_due = ?, notes = ?, active = ?, default_test_def_id = ?, handedness = ?
+                           calibration_date = ?, calibration_due = ?, notes = ?, active = ?, default_test_def_id = ?, default_battery_id = ?, handedness = ?
                        WHERE id = ?""",
                     (driver.driver_id, driver.driver_type, driver.brand, driver.model,
                      driver.torque_min, driver.torque_max, driver.workbench,
-                     driver.calibration_date, driver.calibration_due, driver.notes, driver.active, def_test, hand, driver.id)
+                     driver.calibration_date, driver.calibration_due, driver.notes, driver.active, def_test, def_battery, hand, driver.id)
                 )
                 conn.commit()
                 logger.info(f"Driver updated: {driver.driver_id}")
@@ -596,19 +613,21 @@ class DatabaseManager:
             logger.error(f"Error updating driver: {e}")
             return False
 
-    def bulk_update_driver_default_test(self, driver_ids: list[int], test_def_id: Optional[int]) -> int:
+    def bulk_update_driver_default_test(self, driver_ids: list[int], test_def_id: Optional[int], battery_id: Optional[int] = None) -> int:
         if not driver_ids:
             return 0
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 placeholders = ", ".join(["?"] * len(driver_ids))
-                query = f"UPDATE torque_drivers SET default_test_def_id = ? WHERE id IN ({placeholders})"
-                params = [test_def_id] + driver_ids
+                query = f"""UPDATE torque_drivers 
+                            SET default_test_def_id = ?, default_battery_id = ? 
+                            WHERE id IN ({placeholders})"""
+                params = [test_def_id, battery_id] + driver_ids
                 cursor.execute(query, params)
                 conn.commit()
                 updated = cursor.rowcount
-                logger.info(f"Bulk updated default_test_def_id to {test_def_id} for {updated} drivers")
+                logger.info(f"Bulk updated default test/battery for {updated} drivers")
                 return updated
         except Exception as e:
             logger.error(f"Error in bulk_update_driver_default_test: {e}")

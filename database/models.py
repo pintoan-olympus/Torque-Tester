@@ -27,6 +27,7 @@ class TorqueDriver:
     notes: str = ""
     active: bool = True
     default_test_def_id: Optional[int] = None
+    default_battery_id: Optional[int] = None
     handedness: str = "right"
 
 @dataclass

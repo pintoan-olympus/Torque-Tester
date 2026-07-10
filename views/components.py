@@ -242,7 +242,10 @@ class ScrollableTable(ctk.CTkScrollableFrame):
                     padx=10,
                     pady=4
                 )
-            widget.grid(row=0, column=col_idx, sticky="ew", padx=1)
+            if isinstance(widget, ctk.CTkCheckBox):
+                widget.grid(row=0, column=col_idx, sticky="w", padx=10)
+            else:
+                widget.grid(row=0, column=col_idx, sticky="ew", padx=1)
             widgets.append(widget)
             
         self.row_widgets.append(widgets)

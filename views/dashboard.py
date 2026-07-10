@@ -173,6 +173,13 @@ class DashboardView(ctk.CTkFrame):
         else:
             self.on_mode_changed()
 
+        # Lock controls for Operator access level (Access level <= 1)
+        if self.app.user_manager.current_user.access_level <= 1:
+            self.radio_single.configure(state="disabled")
+            self.radio_battery.configure(state="disabled")
+            self.test_combo.configure(state="disabled")
+            self.battery_combo.configure(state="disabled")
+
         # USB HID Barcode scanner buffer setup
         self._scan_buffer = []
         self._last_scan_time = 0.0
@@ -277,7 +284,8 @@ class DashboardView(ctk.CTkFrame):
             self.workbench_var.set(driver.workbench)
             self.app.update_workbench(driver.workbench)
 
-        # Auto select default test template
+        # Auto select default test template or battery
+        has_default = False
         if driver.default_test_def_id:
             test_defs = self.app.db.get_all_test_definitions()
             default_test = next((td for td in test_defs if td.id == driver.default_test_def_id), None)
@@ -286,6 +294,36 @@ class DashboardView(ctk.CTkFrame):
                 self.on_mode_changed()
                 self.test_name_var.set(default_test.name)
                 self.on_test_selected(default_test.name)
+                has_default = True
+        elif getattr(driver, 'default_battery_id', None):
+            batteries = self.app.db.get_all_batteries()
+            default_bat = next((b for b in batteries if b.id == driver.default_battery_id), None)
+            if default_bat and default_bat.active:
+                self.mode_var.set("battery")
+                self.on_mode_changed()
+                self.battery_name_var.set(default_bat.name)
+                self.on_battery_selected(default_bat.name)
+                has_default = True
+
+        if not has_default:
+            self.mode_var.set("single")
+            self.on_mode_changed()
+            self.test_name_var.set("")
+            self.app.selected_test_def = None
+            self.app.selected_battery = None
+            self.app.battery_items = []
+
+        # Lock/unlock controls dynamically based on Operator access level
+        if self.app.user_manager.current_user.access_level <= 1:
+            self.radio_single.configure(state="disabled")
+            self.radio_battery.configure(state="disabled")
+            self.test_combo.configure(state="disabled")
+            self.battery_combo.configure(state="disabled")
+        else:
+            self.radio_single.configure(state="normal")
+            self.radio_battery.configure(state="normal")
+            self.test_combo.configure(state="disabled" if not self.test_names else "normal")
+            self.battery_combo.configure(state="disabled" if not self.battery_names else "normal")
             
         self.validate_inputs()
 

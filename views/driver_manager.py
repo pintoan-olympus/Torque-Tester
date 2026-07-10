@@ -204,7 +204,7 @@ class DriverManagerView(ctk.CTkFrame):
         # Bulk Edit Action Bar (hidden initially)
         self.bulk_bar = ctk.CTkFrame(self.registry_frame, fg_color="gray18", corner_radius=6)
         
-        self.bulk_lbl = ctk.CTkLabel(self.bulk_bar, text="Bulk Edit (0 selected):", font=ctk.CTkFont(size=12, weight="bold"))
+        self.bulk_lbl = ctk.CTkLabel(self.bulk_bar, text="Default test edit (0 selected):", font=ctk.CTkFont(size=12, weight="bold"))
         self.bulk_lbl.pack(side="left", padx=10, pady=10)
 
         self.bulk_test_var = ctk.StringVar()
@@ -268,7 +268,7 @@ class DriverManagerView(ctk.CTkFrame):
     def update_bulk_bar_visibility(self):
         count = len(self.selected_driver_ids)
         if count > 0:
-            self.bulk_lbl.configure(text=f"Bulk Edit ({count} selected):")
+            self.bulk_lbl.configure(text=f"Default test edit ({count} selected):")
             self.bulk_bar.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 10))
         else:
             self.bulk_bar.grid_forget()
@@ -282,17 +282,20 @@ class DriverManagerView(ctk.CTkFrame):
     def apply_bulk_edit(self):
         choice = self.bulk_test_var.get()
         test_def_id = None
-        if choice != "None" and choice in self.test_def_map:
+        battery_id = None
+        if choice.startswith("[Test] ") and choice in self.test_def_map:
             test_def_id = self.test_def_map[choice].id
+        elif choice.startswith("[Battery] ") and choice in self.battery_map:
+            battery_id = self.battery_map[choice].id
             
         driver_ids = list(self.selected_driver_ids)
         if driver_ids:
-            updated = self.app.db.bulk_update_driver_default_test(driver_ids, test_def_id)
-            self.status_lbl.configure(text=f"Successfully updated default test for {updated} drivers.", text_color="green")
+            updated = self.app.db.bulk_update_driver_default_test(driver_ids, test_def_id, battery_id)
+            self.status_lbl.configure(text=f"Successfully updated default test/battery for {updated} drivers.", text_color="green")
             log_action(
                 self.app.user_manager.current_user.username,
                 "UPDATE_DRIVERS_BULK",
-                f"Updated default test ID to {test_def_id} for {updated} drivers."
+                f"Updated default test to {choice} for {updated} drivers."
             )
             self.clear_driver_selection()
 
@@ -305,9 +308,25 @@ class DriverManagerView(ctk.CTkFrame):
 
     def refresh_test_templates(self):
         test_defs = self.app.db.get_all_test_definitions()
-        self.test_names = ["None"] + [td.name for td in test_defs if td.active]
-        self.test_def_map = {td.name: td for td in test_defs if td.active}
+        self.test_names = ["None"]
+        self.test_def_map = {}
         self.test_def_id_map = {td.id: td for td in test_defs}
+        for td in test_defs:
+            if td.active:
+                name = f"[Test] {td.name}"
+                self.test_names.append(name)
+                self.test_def_map[name] = td
+
+        # Also load batteries
+        batteries = self.app.db.get_all_batteries()
+        self.battery_map = {}
+        self.battery_id_map = {b.id: b for b in batteries}
+        for b in batteries:
+            if b.active:
+                name = f"[Battery] {b.name}"
+                self.test_names.append(name)
+                self.battery_map[name] = b
+
         self.default_test_combo.configure(values=self.test_names)
         self.bulk_test_combo.configure(values=self.test_names)
 
@@ -424,9 +443,12 @@ class DriverManagerView(ctk.CTkFrame):
         self.notes_entry.delete(0, "end")
         self.notes_entry.insert(0, driver.notes or "")
 
-        # Select the default test template name
+        # Select the default test template or battery name
         if driver.default_test_def_id and driver.default_test_def_id in self.test_def_id_map:
-            default_test_name = self.test_def_id_map[driver.default_test_def_id].name
+            default_test_name = f"[Test] {self.test_def_id_map[driver.default_test_def_id].name}"
+            self.default_test_combo.set(default_test_name)
+        elif getattr(driver, 'default_battery_id', None) and driver.default_battery_id in self.battery_id_map:
+            default_test_name = f"[Battery] {self.battery_id_map[driver.default_battery_id].name}"
             self.default_test_combo.set(default_test_name)
         else:
             self.default_test_combo.set("None")
@@ -492,8 +514,11 @@ class DriverManagerView(ctk.CTkFrame):
         # Default test template ID resolving
         selected_test_name = self.default_test_combo.get()
         default_test_id = None
-        if selected_test_name != "None" and selected_test_name in self.test_def_map:
+        default_battery_id = None
+        if selected_test_name.startswith("[Test] ") and selected_test_name in self.test_def_map:
             default_test_id = self.test_def_map[selected_test_name].id
+        elif selected_test_name.startswith("[Battery] ") and selected_test_name in self.battery_map:
+            default_battery_id = self.battery_map[selected_test_name].id
 
         hand_val = "left" if "Left" in self.handedness_combo.get() else "right"
 
@@ -511,6 +536,7 @@ class DriverManagerView(ctk.CTkFrame):
             notes=notes,
             active=active,
             default_test_def_id=default_test_id,
+            default_battery_id=default_battery_id,
             handedness=hand_val
         )
         
