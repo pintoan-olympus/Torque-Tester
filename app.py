@@ -237,10 +237,10 @@ class TorqueTesterApp(ctk.CTk):
             return False
         from views.test_runner import TestRunnerView
         from views.battery_runner import BatteryRunnerView
-        if isinstance(self.current_view, TestRunnerView) and self.current_view.is_active:
+        if isinstance(self.current_view, TestRunnerView) and getattr(self.current_view, 'is_active', False):
             return True
         if isinstance(self.current_view, BatteryRunnerView):
-            if self.current_view.active_runner and self.current_view.active_runner.is_active:
+            if self.current_view.active_runner and getattr(self.current_view.active_runner, 'is_active', False):
                 return True
         return False
 
