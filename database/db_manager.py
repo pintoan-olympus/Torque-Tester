@@ -194,9 +194,14 @@ class DatabaseManager:
                     
             return PyODBCConnectionWrapper(conn)
         else:
-            conn = sqlite3.connect(self.db_config.get("sqlite_path", str(config.DB_PATH)))
+            conn = sqlite3.connect(self.db_config.get("sqlite_path", str(config.DB_PATH)), timeout=30.0)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
+            try:
+                conn.execute("PRAGMA journal_mode = WAL")
+                conn.execute("PRAGMA synchronous = NORMAL")
+            except Exception as e:
+                logger.warning(f"Could not set performance/concurrency PRAGMAs: {e}")
             return conn
 
     def init_db(self):
@@ -1188,7 +1193,7 @@ class DatabaseManager:
 
             # VACUUM must run outside any transaction context
             import sqlite3 as _sqlite3
-            _vacuum_conn = _sqlite3.connect(self.db_config.get("sqlite_path") or str(config.DB_PATH))
+            _vacuum_conn = _sqlite3.connect(self.db_config.get("sqlite_path") or str(config.DB_PATH), timeout=30.0)
             _vacuum_conn.execute("VACUUM")
             _vacuum_conn.close()
                 
