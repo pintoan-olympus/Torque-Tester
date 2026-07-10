@@ -135,6 +135,7 @@ TRANSLATIONS = {
         "run.status": "Status",
         "run.limits": "Limits",
         "run.target": "Target",
+        "run.rotate_until_click": "Rotate driver until click is heard",
         
         # Test History
         "hist.title": "Torque Verification History",
@@ -285,6 +286,7 @@ TRANSLATIONS = {
         "run.status": "Estado",
         "run.limits": "Limites",
         "run.target": "Alvo",
+        "run.rotate_until_click": "Rode o driver até ouvir o estalo",
         
         # Test History
         "hist.title": "Histórico de Verificação de Torque",

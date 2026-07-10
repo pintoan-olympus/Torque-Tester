@@ -14,15 +14,19 @@ class DirectionAnimation(ctk.CTkCanvas):
         self.width = width
         self.height = height
         self.angle = 0
-        self.direction = "IDLE"  # "CW", "CCW", or "IDLE"
+        self.direction = "IDLE"  # "CW", "CCW", "IDLE", or "PASS"
+        self.pass_value = 0.0
         self.draw_idle()
         self.animate()
 
-    def set_direction(self, direction):
-        if self.direction != direction:
+    def set_direction(self, direction, val=0.0):
+        if self.direction != direction or direction == "PASS":
             self.direction = direction
+            self.pass_value = val
             if direction == "IDLE":
                 self.draw_idle()
+            elif direction == "PASS":
+                self.draw_pass(val)
 
     def draw_idle(self):
         self.delete("all")
@@ -32,9 +36,18 @@ class DirectionAnimation(ctk.CTkCanvas):
         self.create_oval(cx - r, cy - r, cx + r, cy + r, outline="gray40", width=3)
         self.create_text(cx, cy, text="IDLE", fill="gray60", font=("Arial", 14, "bold"))
 
+    def draw_pass(self, val):
+        self.delete("all")
+        cx, cy = self.width // 2, self.height // 2
+        r = min(self.width, self.height) // 3
+        # Solid green filled circle with white border, checkmark, and peak cNm value
+        self.create_oval(cx - r, cy - r, cx + r, cy + r, fill="#00A86B", outline="white", width=3)
+        self.create_text(cx, cy - 12, text="✓ PASS", fill="white", font=("Arial", 18, "bold"))
+        self.create_text(cx, cy + 12, text=f"{val:.2f}", fill="white", font=("Arial", 14, "bold"))
+
     def animate(self):
         # We only redraw when active to prevent CPU load and GUI stuttering
-        if self.direction != "IDLE":
+        if self.direction not in ("IDLE", "PASS"):
             self.delete("all")
             cx, cy = self.width // 2, self.height // 2
             r = min(self.width, self.height) // 3
@@ -90,7 +103,6 @@ class TestRunnerView(ctk.CTkFrame):
         self.tracked_peak = 0.0
         self.polling_started = False
         self.auto_capture_var = ctk.BooleanVar(value=True)
-        self.pass_overlay = None
         
         # Grid layout for center alignment
         self.grid_columnconfigure(0, weight=1)
@@ -136,7 +148,6 @@ class TestRunnerView(ctk.CTkFrame):
         self.container.grid_rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=0)
         self.container.grid_columnconfigure((0, 1, 2), weight=0)
         self.container.configure(fg_color=bg_color)
-        self.pass_overlay = None
 
     def show_start_screen(self):
         """Screen 1 — Start Screen (Neutral background, large Set Torque message)"""
@@ -278,14 +289,24 @@ class TestRunnerView(ctk.CTkFrame):
         center_frame.grid(row=1, column=0, sticky="nsew", padx=40, pady=5)
         center_frame.grid_columnconfigure((0, 1), weight=1)
         center_frame.grid_rowconfigure(0, weight=1)
+        center_frame.grid_rowconfigure(1, weight=0) # Instruction row below canvas
         
         # Dynamic Direction indicator
         self.dir_anim = DirectionAnimation(center_frame)
         self.dir_anim.grid(row=0, column=0, padx=20, pady=10)
         
+        # Instructions label below canvas
+        self.lbl_rotate_inst = ctk.CTkLabel(
+            center_frame,
+            text=i18n.t("run.rotate_until_click").upper(),
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="gray50"
+        )
+        self.lbl_rotate_inst.grid(row=1, column=0, pady=(5, 10))
+        
         # Status details card
         status_card = ctk.CTkFrame(center_frame, fg_color="gray10", corner_radius=10)
-        status_card.grid(row=0, column=1, sticky="nsew", padx=20, pady=10)
+        status_card.grid(row=0, column=1, sticky="nsew", rowspan=2, padx=20, pady=10)
         status_card.grid_columnconfigure(0, weight=1)
         status_card.grid_rowconfigure((0, 1), weight=1)
         
@@ -387,7 +408,7 @@ class TestRunnerView(ctk.CTkFrame):
         if not hasattr(self, 'lbl_progress') or not self.lbl_progress:
             return
             
-        # 1. Update Top Bar Progress text
+        # 1. Update Top Bar Progress text (correct parameters n and m)
         prog_text = f"{i18n.t('run.test_n_of_m', n=self.step_number, m=self.total_steps)} | {i18n.t('run.sample_n_of_m', n=self.current_sample_idx + 1, m=self.test_def.num_samples)}"
         self.lbl_progress.configure(text=prog_text.upper())
         
@@ -414,28 +435,10 @@ class TestRunnerView(ctk.CTkFrame):
         """Screen 3 — PASS Result (Centered dialog overlay directly on Measuring Screen, no screen switch)"""
         self.is_active = False  # Temporarily pause measuring/polling
         
-        # Create overlay frame centered in the container
-        self.pass_overlay = ctk.CTkFrame(self.container, fg_color="#00A86B", corner_radius=12, border_width=2, border_color="white")
-        # Place centered overlay spanning measuring rows
-        self.pass_overlay.grid(row=1, column=0, rowspan=2, padx=40, pady=20)
+        # Change rotation indicator to PASS display
+        self.dir_anim.set_direction("PASS", val=val)
         
-        lbl_check = ctk.CTkLabel(
-            self.pass_overlay,
-            text="✓ PASS",
-            font=ctk.CTkFont(size=36, weight="bold"),
-            text_color="white"
-        )
-        lbl_check.pack(padx=60, pady=(25, 5))
-        
-        lbl_val = ctk.CTkLabel(
-            self.pass_overlay,
-            text=f"{val:.2f} cNm",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="white"
-        )
-        lbl_val.pack(padx=60, pady=(0, 25))
-        
-        # Update bottom details card so the passed sample value is visible immediately
+        # Update logs list immediately
         self.update_progress_and_labels()
         
         if programmatic:
@@ -444,18 +447,13 @@ class TestRunnerView(ctk.CTkFrame):
             self.after(2000, self.hide_pass_overlay_and_continue)
 
     def hide_pass_overlay_and_continue(self):
-        """Hides the green PASS dialog overlay and resumes the next measurement stage."""
-        if hasattr(self, 'pass_overlay') and self.pass_overlay:
-            try:
-                self.pass_overlay.destroy()
-            except Exception:
-                pass
-            self.pass_overlay = None
-            
+        """Hides PASS indicator and resumes measuring stage or concludes the session."""
         # Check if all samples of the test sequence are complete
         if self.current_sample_idx >= self.test_def.num_samples:
             self.finish_test()
         else:
+            # Change rotation indicator back to IDLE
+            self.dir_anim.set_direction("IDLE")
             # Resume measuring/polling
             self.is_active = True
             self.reset_sensor_peak()
