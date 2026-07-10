@@ -17,6 +17,8 @@ db_config.json
 
 # === Database Files ===
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 
