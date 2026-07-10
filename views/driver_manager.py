@@ -15,6 +15,9 @@ class DriverManagerView(ctk.CTkFrame):
         # Selected driver for editing (None means adding new)
         self.selected_driver_id = None
         
+        # Multi-select tracking for bulk operations
+        self.selected_driver_ids = set()
+        
         # Grid layout (2 columns: left for form, right for registry table)
         self.grid_columnconfigure(0, weight=2, uniform="cols")
         self.grid_columnconfigure(1, weight=3, uniform="cols")
@@ -174,16 +177,124 @@ class DriverManagerView(ctk.CTkFrame):
         )
         clear_search_btn.grid(row=0, column=1, sticky="e")
         
+        clear_search_btn.grid(row=0, column=1, sticky="e")
+        
         # Table
         self.table = ScrollableTable(
             self.registry_frame,
-            headers=["ID", "Type", "Hand", "Workbench", "Range (cNm)", "Cal Due", "Status", "Edit", "Clone"],
-            column_weights=[2, 2, 1, 2, 2, 2, 2, 1, 1],
+            headers=["☐", "ID", "Type", "Hand", "Workbench", "Range (cNm)", "Cal Due", "Status", "Edit", "Clone"],
+            column_weights=[1, 2, 2, 1, 2, 2, 2, 2, 1, 1],
             fg_color="gray12"
         )
         self.table.grid(row=2, column=0, sticky="nsew", padx=15, pady=(0, 15))
+
+        # Replace first header label with a checkbox
+        self.table.header_widgets[0].destroy()
+        self.select_all_var = ctk.BooleanVar(value=False)
+        self.select_all_cb = ctk.CTkCheckBox(
+            self.table, 
+            text="", 
+            variable=self.select_all_var, 
+            width=20,
+            command=self.toggle_select_all
+        )
+        self.select_all_cb.grid(row=0, column=0, sticky="w", padx=10, pady=(0, 5))
+        self.table.header_widgets[0] = self.select_all_cb
+
+        # Bulk Edit Action Bar (hidden initially)
+        self.bulk_bar = ctk.CTkFrame(self.registry_frame, fg_color="gray18", corner_radius=6)
+        
+        self.bulk_lbl = ctk.CTkLabel(self.bulk_bar, text="Bulk Edit (0 selected):", font=ctk.CTkFont(size=12, weight="bold"))
+        self.bulk_lbl.pack(side="left", padx=10, pady=10)
+
+        self.bulk_test_var = ctk.StringVar()
+        self.bulk_test_combo = ctk.CTkComboBox(self.bulk_bar, values=[], variable=self.bulk_test_var, width=180)
+        self.bulk_test_combo.pack(side="left", padx=5, pady=10)
+
+        self.bulk_apply_btn = ctk.CTkButton(
+            self.bulk_bar, 
+            text="Apply to Selected", 
+            width=120, 
+            fg_color="green", 
+            hover_color="darkgreen",
+            command=self.apply_bulk_edit
+        )
+        self.bulk_apply_btn.pack(side="left", padx=5, pady=10)
+
+        self.bulk_clear_btn = ctk.CTkButton(
+            self.bulk_bar, 
+            text="Clear Selection", 
+            width=100, 
+            fg_color="gray30", 
+            hover_color="gray40",
+            command=self.clear_driver_selection
+        )
+        self.bulk_clear_btn.pack(side="right", padx=10, pady=10)
         
         self.load_drivers()
+
+    def toggle_select_all(self):
+        drivers = self.app.db.get_all_drivers()
+        # Find currently filtered drivers
+        search_query = self.search_entry.get().lower() if getattr(self, 'search_entry', None) else ""
+        filtered_drivers = [
+            d for d in drivers 
+            if not search_query or
+               search_query in (d.driver_id or "").lower() or
+               search_query in (d.brand or "").lower() or
+               search_query in (d.model or "").lower() or
+               search_query in (d.driver_type or "").lower() or
+               search_query in (d.workbench or "").lower()
+        ]
+        
+        if self.select_all_var.get():
+            for d in filtered_drivers:
+                self.selected_driver_ids.add(d.id)
+        else:
+            for d in filtered_drivers:
+                self.selected_driver_ids.discard(d.id)
+                
+        self.load_drivers()
+        self.update_bulk_bar_visibility()
+
+    def on_driver_chk_toggled(self, driver_id, is_checked):
+        if is_checked:
+            self.selected_driver_ids.add(driver_id)
+        else:
+            self.selected_driver_ids.discard(driver_id)
+            self.select_all_var.set(False)
+        self.update_bulk_bar_visibility()
+
+    def update_bulk_bar_visibility(self):
+        count = len(self.selected_driver_ids)
+        if count > 0:
+            self.bulk_lbl.configure(text=f"Bulk Edit ({count} selected):")
+            self.bulk_bar.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 10))
+        else:
+            self.bulk_bar.grid_forget()
+
+    def clear_driver_selection(self):
+        self.selected_driver_ids.clear()
+        self.select_all_var.set(False)
+        self.load_drivers()
+        self.update_bulk_bar_visibility()
+
+    def apply_bulk_edit(self):
+        choice = self.bulk_test_var.get()
+        test_def_id = None
+        if choice != "None" and choice in self.test_def_map:
+            test_def_id = self.test_def_map[choice].id
+            
+        driver_ids = list(self.selected_driver_ids)
+        if driver_ids:
+            updated = self.app.db.bulk_update_driver_default_test(driver_ids, test_def_id)
+            self.status_lbl.configure(text=f"Successfully updated default test for {updated} drivers.", text_color="green")
+            log_action(
+                self.app.user_manager.current_user.username,
+                "UPDATE_DRIVERS_BULK",
+                f"Updated default test ID to {test_def_id} for {updated} drivers."
+            )
+            self.clear_driver_selection()
 
     def filter_drivers(self):
         self.load_drivers()
@@ -198,6 +309,7 @@ class DriverManagerView(ctk.CTkFrame):
         self.test_def_map = {td.name: td for td in test_defs if td.active}
         self.test_def_id_map = {td.id: td for td in test_defs}
         self.default_test_combo.configure(values=self.test_names)
+        self.bulk_test_combo.configure(values=self.test_names)
 
     def load_drivers(self):
         self.refresh_test_templates()
@@ -234,13 +346,26 @@ class DriverManagerView(ctk.CTkFrame):
             active_disp = "Active" if d.active else "Inactive"
             hand_disp = "LH" if getattr(d, 'handedness', 'right') == 'left' else "RH"
             
+            is_checked = d.id in self.selected_driver_ids
+            def make_chk(parent, d_id=d.id, val_checked=is_checked):
+                var = ctk.BooleanVar(value=val_checked)
+                cb = ctk.CTkCheckBox(
+                    parent, 
+                    text="", 
+                    variable=var, 
+                    width=20,
+                    command=lambda: self.on_driver_chk_toggled(d_id, var.get())
+                )
+                return cb
+
             cell_commands = {
-                7: lambda driver_obj=d: self.edit_driver_selected(driver_obj),
-                8: lambda driver_obj=d: self.clone_driver_selected(driver_obj)
+                8: lambda driver_obj=d: self.edit_driver_selected(driver_obj),
+                9: lambda driver_obj=d: self.clone_driver_selected(driver_obj)
             }
             
             self.table.add_row(
                 [
+                    make_chk,
                     d.driver_id,
                     d.driver_type,
                     hand_disp,

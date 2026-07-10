@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 import config
 from utils.logger import get_logger
-from database.models import User, TorqueDriver, TestDefinition, TestSession, TestMeasurement
+from database.models import User, TorqueDriver, TestDefinition, TestSession, TestMeasurement, TestBattery, BatteryItem
 
 logger = get_logger()
 
@@ -353,6 +353,45 @@ class DatabaseManager:
                     FOREIGN KEY(session_id) REFERENCES test_sessions(id)
                 )
             """)
+
+            # Test Batteries table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS test_batteries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    active BOOLEAN DEFAULT 1
+                )
+            """)
+
+            # Battery Items table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS battery_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    battery_id INTEGER NOT NULL,
+                    test_def_id INTEGER NOT NULL,
+                    sequence_order INTEGER NOT NULL,
+                    FOREIGN KEY(battery_id) REFERENCES test_batteries(id),
+                    FOREIGN KEY(test_def_id) REFERENCES test_definitions(id)
+                )
+            """)
+
+            # Battery Sessions table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS battery_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    battery_id INTEGER NOT NULL,
+                    driver_id INTEGER NOT NULL,
+                    workbench TEXT NOT NULL,
+                    operator_id INTEGER NOT NULL,
+                    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    completed_at DATETIME,
+                    overall_result TEXT DEFAULT 'ABORTED',
+                    FOREIGN KEY(battery_id) REFERENCES test_batteries(id),
+                    FOREIGN KEY(driver_id) REFERENCES torque_drivers(id),
+                    FOREIGN KEY(operator_id) REFERENCES users(id)
+                )
+            """)
             
             # Seed default torque driver if empty
             cursor.execute("SELECT COUNT(*) FROM torque_drivers")
@@ -557,6 +596,24 @@ class DatabaseManager:
             logger.error(f"Error updating driver: {e}")
             return False
 
+    def bulk_update_driver_default_test(self, driver_ids: list[int], test_def_id: Optional[int]) -> int:
+        if not driver_ids:
+            return 0
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                placeholders = ", ".join(["?"] * len(driver_ids))
+                query = f"UPDATE torque_drivers SET default_test_def_id = ? WHERE id IN ({placeholders})"
+                params = [test_def_id] + driver_ids
+                cursor.execute(query, params)
+                conn.commit()
+                updated = cursor.rowcount
+                logger.info(f"Bulk updated default_test_def_id to {test_def_id} for {updated} drivers")
+                return updated
+        except Exception as e:
+            logger.error(f"Error in bulk_update_driver_default_test: {e}")
+            return 0
+
     # --- Test Definition Operations ---
     
     def create_test_definition(self, test_def: TestDefinition) -> Optional[int]:
@@ -625,6 +682,172 @@ class DatabaseManager:
                 return True
         except Exception as e:
             logger.error(f"Error updating test definition: {e}")
+            return False
+
+    # --- Test Battery Operations ---
+    
+    def create_battery(self, battery: TestBattery) -> Optional[int]:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """INSERT INTO test_batteries (name, description, active)
+                       VALUES (?, ?, ?)""",
+                    (battery.name, battery.description, battery.active)
+                )
+                conn.commit()
+                battery_id = cursor.lastrowid
+                logger.info(f"Battery created: {battery.name} with ID {battery_id}")
+                return battery_id
+        except Exception as e:
+            logger.error(f"Error creating battery: {e}")
+            return None
+
+    def update_battery(self, battery: TestBattery) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """UPDATE test_batteries
+                       SET name = ?, description = ?, active = ?
+                       WHERE id = ?""",
+                    (battery.name, battery.description, battery.active, battery.id)
+                )
+                conn.commit()
+                logger.info(f"Battery updated: {battery.name}")
+                return True
+        except Exception as e:
+            logger.error(f"Error updating battery: {e}")
+            return False
+
+    def get_all_batteries(self) -> list[TestBattery]:
+        batteries = []
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM test_batteries ORDER BY name ASC")
+                for row in cursor.fetchall():
+                    batteries.append(TestBattery(
+                        id=row["id"],
+                        name=row["name"],
+                        description=row["description"],
+                        active=bool(row["active"])
+                    ))
+        except Exception as e:
+            logger.error(f"Error fetching all batteries: {e}")
+        return batteries
+
+    def get_battery_by_id(self, battery_id: int) -> Optional[TestBattery]:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM test_batteries WHERE id = ?", (battery_id,))
+                row = cursor.fetchone()
+                if row:
+                    return TestBattery(
+                        id=row["id"],
+                        name=row["name"],
+                        description=row["description"],
+                        active=bool(row["active"])
+                    )
+        except Exception as e:
+            logger.error(f"Error fetching battery by id {battery_id}: {e}")
+        return None
+
+    def get_battery_items(self, battery_id: int) -> list[BatteryItem]:
+        items = []
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                # Join with test_definitions to get details
+                query = """
+                    SELECT bi.id as item_id, bi.battery_id, bi.test_def_id, bi.sequence_order,
+                           td.name, td.test_type, td.target_value, td.tolerance_plus, td.tolerance_minus,
+                           td.num_samples, td.min_samples, td.min_ok_samples, td.default_tester_id, td.instructions, td.active
+                    FROM battery_items bi
+                    JOIN test_definitions td ON bi.test_def_id = td.id
+                    WHERE bi.battery_id = ?
+                    ORDER BY bi.sequence_order ASC
+                """
+                cursor.execute(query, (battery_id,))
+                for row in cursor.fetchall():
+                    test_def = TestDefinition(
+                        id=row["test_def_id"],
+                        name=row["name"],
+                        test_type=row["test_type"],
+                        target_value=row["target_value"],
+                        tolerance_plus=row["tolerance_plus"],
+                        tolerance_minus=row["tolerance_minus"],
+                        num_samples=row["num_samples"],
+                        min_samples=row["min_samples"] if "min_samples" in row.keys() else 3,
+                        min_ok_samples=row["min_ok_samples"] if "min_ok_samples" in row.keys() else (row["min_samples"] if "min_samples" in row.keys() else 3),
+                        default_tester_id=row["default_tester_id"] if "default_tester_id" in row.keys() else 'A',
+                        instructions=row["instructions"],
+                        active=bool(row["active"])
+                    )
+                    items.append(BatteryItem(
+                        id=row["item_id"],
+                        battery_id=row["battery_id"],
+                        test_def_id=row["test_def_id"],
+                        sequence_order=row["sequence_order"],
+                        test_def=test_def
+                    ))
+        except Exception as e:
+            logger.error(f"Error fetching battery items for battery {battery_id}: {e}")
+        return items
+
+    def set_battery_items(self, battery_id: int, ordered_test_def_ids: list[int]) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                # Delete existing items
+                cursor.execute("DELETE FROM battery_items WHERE battery_id = ?", (battery_id,))
+                # Insert new items in order
+                for idx, test_def_id in enumerate(ordered_test_def_ids):
+                    cursor.execute(
+                        """INSERT INTO battery_items (battery_id, test_def_id, sequence_order)
+                           VALUES (?, ?, ?)""",
+                        (battery_id, test_def_id, idx + 1)
+                    )
+                conn.commit()
+                logger.info(f"Updated items for battery ID {battery_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Error setting battery items: {e}")
+            return False
+
+    def start_battery_session(self, battery_id: int, driver_id: int, workbench: str, operator_id: int) -> Optional[int]:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """INSERT INTO battery_sessions (battery_id, driver_id, workbench, operator_id, overall_result)
+                       VALUES (?, ?, ?, ?, 'ABORTED')""",
+                    (battery_id, driver_id, workbench, operator_id)
+                )
+                conn.commit()
+                session_id = cursor.lastrowid
+                logger.info(f"Battery test session {session_id} started for battery {battery_id}, driver {driver_id}")
+                return session_id
+        except Exception as e:
+            logger.error(f"Error starting battery session: {e}")
+            return None
+
+    def complete_battery_session(self, battery_session_id: int, overall_result: str) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """UPDATE battery_sessions
+                       SET completed_at = CURRENT_TIMESTAMP, overall_result = ?
+                       WHERE id = ?""",
+                    (overall_result, battery_session_id)
+                )
+                conn.commit()
+                logger.info(f"Battery test session {battery_session_id} completed with result: {overall_result}")
+                return True
+        except Exception as e:
+            logger.error(f"Error completing battery session: {e}")
             return False
 
     # --- Test Session and Measurement Operations ---

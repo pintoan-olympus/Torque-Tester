@@ -55,6 +55,10 @@ class TorqueTesterApp(ctk.CTk):
         self.selected_workbench = ""
         self.selected_driver = None
         self.selected_test_def = None
+        self.selected_battery = None
+        self.battery_items = []
+        self.current_battery_step = 0
+        self.battery_session_id = None
         
         # Configure main window
         self.title(f"{config.APP_NAME} - v{config.VERSION}")
@@ -154,6 +158,7 @@ class TorqueTesterApp(ctk.CTk):
         from views.test_history import TestHistoryView
         from views.driver_manager import DriverManagerView
         from views.test_setup import TestSetupView
+        from views.battery_setup import BatterySetupView
         from views.user_admin import UserAdminView
         from views.settings_view import SettingsView
 
@@ -163,6 +168,7 @@ class TorqueTesterApp(ctk.CTk):
             ("Test History", TestHistoryView, config.ACCESS_OPERATOR),
             ("Driver Database", DriverManagerView, config.ACCESS_SUPERVISOR),
             ("Test Setup", TestSetupView, config.ACCESS_SUPERVISOR),
+            ("Battery Setup", BatterySetupView, config.ACCESS_ADMIN),
             ("User Admin", UserAdminView, config.ACCESS_ADMIN),
             ("Settings", SettingsView, config.ACCESS_OPERATOR),  # Everyone can view settings, admin edits
         ]

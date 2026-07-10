@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import datetime
 
 @dataclass
@@ -63,3 +63,18 @@ class TestMeasurement:
     measured_value: float = 0.0
     result: str = "NOK"  # OK, NOK
     timestamp: str = ""
+
+@dataclass
+class TestBattery:
+    id: Optional[int] = None
+    name: str = ""
+    description: str = ""
+    active: bool = True
+
+@dataclass
+class BatteryItem:
+    id: Optional[int] = None
+    battery_id: int = 0
+    test_def_id: int = 0
+    sequence_order: int = 0
+    test_def: Optional[TestDefinition] = None  # populated by JOIN query

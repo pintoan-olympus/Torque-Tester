@@ -60,10 +60,37 @@ class DashboardView(ctk.CTkFrame):
         )
         self.workbench_combo.pack(pady=(0, 15), padx=20, anchor="w")
         
-        # 3. Select Test Procedure
-        t_lbl = ctk.CTkLabel(self.setup_frame, text="3. Select Test Template", font=ctk.CTkFont(size=12, weight="bold"))
-        t_lbl.pack(pady=(10, 2), padx=20, anchor="w")
+        # 3. Selection Mode (Single Test vs Battery Test)
+        m_lbl = ctk.CTkLabel(self.setup_frame, text="3. Selection Mode", font=ctk.CTkFont(size=12, weight="bold"))
+        m_lbl.pack(pady=(10, 2), padx=20, anchor="w")
+
+        self.mode_var = ctk.StringVar(value="single")
+        self.mode_frame = ctk.CTkFrame(self.setup_frame, fg_color="transparent")
+        self.mode_frame.pack(pady=(0, 10), padx=20, fill="x", anchor="w")
+
+        self.radio_single = ctk.CTkRadioButton(
+            self.mode_frame,
+            text="Single Test",
+            variable=self.mode_var,
+            value="single",
+            command=self.on_mode_changed
+        )
+        self.radio_single.pack(side="left", padx=(0, 20))
+
+        self.radio_battery = ctk.CTkRadioButton(
+            self.mode_frame,
+            text="Battery Test",
+            variable=self.mode_var,
+            value="battery",
+            command=self.on_mode_changed
+        )
+        self.radio_battery.pack(side="left")
+
+        # 4. Select Test Procedure or Battery
+        self.procedure_lbl = ctk.CTkLabel(self.setup_frame, text="4. Select Test Template", font=ctk.CTkFont(size=12, weight="bold"))
+        self.procedure_lbl.pack(pady=(10, 2), padx=20, anchor="w")
         
+        # Load Test Definitions
         test_defs = self.app.db.get_all_test_definitions()
         self.test_names = [td.name for td in test_defs if td.active]
         self.test_def_map = {td.name: td for td in test_defs if td.active}
@@ -78,6 +105,22 @@ class DashboardView(ctk.CTkFrame):
             command=self.on_test_selected
         )
         self.test_combo.pack(pady=(0, 20), padx=20, anchor="w")
+
+        # Load Batteries
+        batteries = self.app.db.get_all_batteries()
+        self.battery_names = [b.name for b in batteries if b.active]
+        self.battery_map = {b.name: b for b in batteries if b.active}
+
+        self.battery_name_var = ctk.StringVar()
+        self.battery_combo = ctk.CTkComboBox(
+            self.setup_frame,
+            values=self.battery_names,
+            variable=self.battery_name_var,
+            width=350,
+            state="disabled" if not self.battery_names else "normal",
+            command=self.on_battery_selected
+        )
+        # Will be packed dynamically inside on_mode_changed()
         
         # Start button
         self.start_btn = ctk.CTkButton(
@@ -117,9 +160,18 @@ class DashboardView(ctk.CTkFrame):
         if self.app.selected_driver:
             self.driver_id_var.set(self.app.selected_driver.driver_id)
             self.on_driver_selected(self.app.selected_driver.driver_id)
-        if self.app.selected_test_def:
+        if self.app.selected_battery:
+            self.mode_var.set("battery")
+            self.on_mode_changed()
+            self.battery_name_var.set(self.app.selected_battery.name)
+            self.on_battery_selected(self.app.selected_battery.name)
+        elif self.app.selected_test_def:
+            self.mode_var.set("single")
+            self.on_mode_changed()
             self.test_name_var.set(self.app.selected_test_def.name)
             self.on_test_selected(self.app.selected_test_def.name)
+        else:
+            self.on_mode_changed()
 
         # USB HID Barcode scanner buffer setup
         self._scan_buffer = []
@@ -230,9 +282,41 @@ class DashboardView(ctk.CTkFrame):
             test_defs = self.app.db.get_all_test_definitions()
             default_test = next((td for td in test_defs if td.id == driver.default_test_def_id), None)
             if default_test and default_test.active:
+                self.mode_var.set("single")
+                self.on_mode_changed()
                 self.test_name_var.set(default_test.name)
                 self.on_test_selected(default_test.name)
             
+        self.validate_inputs()
+
+    def on_mode_changed(self):
+        mode = self.mode_var.get()
+        if mode == "single":
+            self.procedure_lbl.configure(text="4. Select Test Template")
+            self.battery_combo.pack_forget()
+            self.test_combo.pack(pady=(0, 20), padx=20, anchor="w")
+            self.app.selected_battery = None
+            self.app.battery_items = []
+            self.on_test_selected(self.test_name_var.get())
+        else:
+            self.procedure_lbl.configure(text="4. Select Test Battery")
+            self.test_combo.pack_forget()
+            self.battery_combo.pack(pady=(0, 20), padx=20, anchor="w")
+            self.app.selected_test_def = None
+            self.on_battery_selected(self.battery_name_var.get())
+
+    def on_battery_selected(self, battery_name):
+        battery = self.battery_map.get(battery_name)
+        self.app.selected_battery = battery
+        if battery:
+            self.app.battery_items = self.app.db.get_battery_items(battery.id)
+            if self.app.battery_items:
+                self.app.selected_test_def = self.app.battery_items[0].test_def
+            else:
+                self.app.selected_test_def = None
+        else:
+            self.app.battery_items = []
+            self.app.selected_test_def = None
         self.validate_inputs()
 
     def on_test_selected(self, test_name):
@@ -243,9 +327,16 @@ class DashboardView(ctk.CTkFrame):
     def validate_inputs(self):
         workbench = self.workbench_var.get().strip()
         driver = self.app.selected_driver
-        test_def = self.app.selected_test_def
+        mode = self.mode_var.get()
         
-        if workbench and driver and test_def:
+        if mode == "single":
+            test_def = self.app.selected_test_def
+            is_valid = bool(workbench and driver and test_def)
+        else:
+            battery = self.app.selected_battery
+            is_valid = bool(workbench and driver and battery and self.app.battery_items)
+            
+        if is_valid:
             self.start_btn.configure(state="normal")
         else:
             self.start_btn.configure(state="disabled")
@@ -254,8 +345,17 @@ class DashboardView(ctk.CTkFrame):
         workbench = self.workbench_var.get().strip()
         self.app.update_workbench(workbench)
         
-        # Open Test Runner
-        self.app.show_view(TestRunnerView)
+        mode = self.mode_var.get()
+        if mode == "single":
+            self.app.selected_battery = None
+            self.app.battery_items = []
+            self.app.show_view(TestRunnerView)
+        else:
+            from views.battery_runner import BatteryRunnerView
+            self.app.current_battery_step = 0
+            if self.app.battery_items:
+                self.app.selected_test_def = self.app.battery_items[0].test_def
+            self.app.show_view(BatteryRunnerView)
 
     def on_global_key(self, event):
         # Only parse keypresses if the dashboard view is active

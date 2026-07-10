@@ -219,7 +219,10 @@ class ScrollableTable(ctk.CTkScrollableFrame):
             row_frame.grid_columnconfigure(col_idx, weight=weight)
             
         for col_idx, val in enumerate(cells):
-            if col_idx in cell_commands:
+            if callable(val) and not isinstance(val, (str, bytes)):
+                # If it is a widget factory (callable), call it with row_frame as master
+                widget = val(row_frame)
+            elif col_idx in cell_commands:
                 # If command is provided, render a button instead of a label
                 widget = ctk.CTkButton(
                     row_frame,

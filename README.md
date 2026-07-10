@@ -68,6 +68,8 @@ The application supports the **tool calibration and quality assurance workflow**
 | **Serial Hot-Swap Reconnect** | Background thread auto-reconnect retry loop when hardware is unplugged and reinserted |
 | **Data Management** | CSV export/import per table; full test record wipe with automatic pre-wipe CSV backup |
 | **User Administration** | Create, edit, deactivate users; password reset (Admin only) |
+| **Battery Tests** | Admin-defined sequences of Test Definitions; passes only when all tests result in PASS (Admin only CRUD) |
+| **Bulk Driver Edit** | Multi-select check boxes in Driver Database to batch-update the default test assignment for multiple drivers at once |
 
 ### Workflow Diagram
 
@@ -456,6 +458,24 @@ operator_id (FK) ──► users           result (OK / NOK)
 started_at                           timestamp
 completed_at
 overall_result (PASS/FAIL/ABORTED)
+
+test_batteries                       battery_items
+─────────────────────                ─────────────────────
+id (PK)                              id (PK)
+name                                 battery_id (FK) ──► test_batteries
+description                          test_def_id (FK) ──► test_definitions
+active                               sequence_order
+
+battery_sessions
+─────────────────────
+id (PK)
+battery_id (FK) ──► test_batteries
+driver_id (FK) ──► torque_drivers
+workbench
+operator_id (FK) ──► users
+started_at
+completed_at
+overall_result (PASS/FAIL/ABORTED)
 ```
 
 ### Table Descriptions
@@ -467,6 +487,9 @@ overall_result (PASS/FAIL/ABORTED)
 | `test_definitions` | QA procedure templates: target torque, tolerances, sample count rules |
 | `test_sessions` | Audit records of completed test cycles |
 | `test_measurements` | Individual torque readings captured during each session |
+| `test_batteries` | Admin-defined collections of multiple test templates run in sequence |
+| `battery_items` | The ordered test steps linked to each test battery |
+| `battery_sessions` | Summary records of completed battery test runs |
 
 ### Backup and Recovery
 
@@ -511,10 +534,12 @@ Copy-Item torque_tester.db torque_tester_backup_$(Get-Date -Format yyyyMMdd).db
 | `utils/helpers.py` | Datetime formatting, cNm display helpers |
 | `utils/logger.py` | Rotating file logger (16 KB tail read for UI log viewer) |
 | `views/components.py` | `ScrollableTable` reusable grid widget |
-| `views/dashboard.py` | Dashboard view: session initialization, global key listener for barcode scans |
-| `views/driver_manager.py` | Driver CRUD: register, edit, clone, search, delete |
+| `views/dashboard.py` | Dashboard view: session initialization, global key listener for barcode scans, single/battery mode toggle |
+| `views/driver_manager.py` | Driver CRUD: register, edit, clone, search, delete, and multi-select bulk default test updates |
 | `views/test_setup.py` | Procedure template CRUD |
-| `views/test_runner.py` | Live test: gauge, snap-back engine, sample log |
+| `views/battery_setup.py` | Admin view for test battery creation, editing, cloning, and steps reordering |
+| `views/test_runner.py` | Live test: step-by-step guided instructions, live reading and peak labels, result banners with retry, and completion callbacks |
+| `views/battery_runner.py` | Battery test runner orchestrator: sequences steps, handles skips on failure, and shows sequence-complete summary screens |
 | `views/test_history.py` | Audit log with filters, detail popup, CSV export |
 | `views/settings_view.py` | Hardware tabs, DB connection, data management |
 | `views/user_admin.py` | User management: create, edit, deactivate, password reset |
@@ -682,6 +707,7 @@ Verifies all 19 project modules import without errors. Run this after any code c
 
 | Version | Date | Changes |
 |---|---|---|
+| `v1.2.0` | 2026-07-10 | Version 1.2.0: Battery Test sequences (Admin creation, step-by-step guided flow runner, skip on failure, test retry), Driver Database multi-select checkbox bulk test assignment, and Test Runner UX redesign (removed gauge dial, added instructions card and live feed) |
 | `v1.1.0` | 2026-07-08 | Version 1.1.0: hands-free USB HID barcode scanning, daily/startup rolling SQLite backups, serial connection hot-swap reconnect, config defaults simplification, and build cleanup |
 | `v1.0.0` | 2026-07-08 | Initial release: full feature set including multi-sensor support, hardware.ini migration, test history CSV export, driver/template clone, search, and compiled executable |
 
