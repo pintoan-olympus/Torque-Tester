@@ -742,6 +742,20 @@ class TestRunnerView(ctk.CTkFrame):
             # Re-schedule next poll anyway, but skip processing
             self.after(50, self.poll_sensor)
             return
+
+        # Wrong tester detection
+        if self.is_active and self.auto_capture_state in ["IDLE", "RISING"] and not getattr(self, 'wrong_sensor_dialog_shown', False):
+            correct_tester_id = (self.test_def.default_tester_id or 'A').upper()
+            correct_idx = ord(correct_tester_id) - 65
+            for idx, sensor in enumerate(self.app.sensors):
+                if idx != correct_idx and sensor and sensor.is_connected():
+                    try:
+                        other_val = abs(sensor.read_torque())
+                        if other_val >= 2.0:
+                            self.show_wrong_tester_dialog(chr(65 + idx), correct_tester_id)
+                            break
+                    except Exception:
+                        pass
             
         current = self.app.sensor.read_torque()
         peak = self.app.sensor.get_peak()
@@ -812,13 +826,36 @@ class TestRunnerView(ctk.CTkFrame):
             self.app.sensor.start_torque_cycle(self.test_def.target_value)
 
     def reset_sensor_peak(self, reset_state=True):
-        if self.app.sensor:
-            self.app.sensor.reset_peak()
-            if reset_state:
-                self.auto_capture_state = "IDLE"
-            self.tracked_peak = 0.0
-            self.trigger_simulated_torque()
+        for s in self.app.sensors:
+            if s:
+                try:
+                    s.reset_peak()
+                except Exception:
+                    pass
+        if reset_state:
+            self.auto_capture_state = "IDLE"
+        self.tracked_peak = 0.0
+        self.trigger_simulated_torque()
+        if hasattr(self, 'peak_lbl') and self.peak_lbl:
             self.peak_lbl.configure(text=f"{i18n.t('run.peak').upper()}: 0.00 cNm")
+
+    def show_wrong_tester_dialog(self, used_id, correct_id):
+        self.wrong_sensor_dialog_shown = True
+        from tkinter import messagebox
+        title = i18n.t("run.wrong_tester_title", default="Wrong Tester")
+        msg = i18n.t("run.wrong_tester_msg", default="Wrong tester detected! You are applying force to Tester {used}, but this test is configured for Tester {correct}. Please use the correct tester.").format(used=used_id, correct=correct_id)
+        
+        messagebox.showwarning(title, msg)
+        
+        # Reset the peak on the incorrect sensor immediately after the dialog is closed to prevent loops
+        try:
+            idx = ord(used_id.upper()) - 65
+            if 0 <= idx < len(self.app.sensors) and self.app.sensors[idx]:
+                self.app.sensors[idx].reset_peak()
+        except Exception:
+            pass
+            
+        self.wrong_sensor_dialog_shown = False
 
     def start_measurements(self):
         """Mock method for test suite compatibility."""
