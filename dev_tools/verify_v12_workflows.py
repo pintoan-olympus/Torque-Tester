@@ -14,7 +14,7 @@ from views.battery_setup import BatterySetupView
 from views.driver_manager import DriverManagerView
 from views.battery_runner import BatteryRunnerView
 
-print("Starting Programmatic Workflow Verification for Version 1.2.0...")
+print("Starting Programmatic Workflow Verification for Version 1.5.0...")
 
 # Initialize Database in SQLite memory or standard test DB file
 db = DatabaseManager(db_path="test_torque_tester.db")
