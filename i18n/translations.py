@@ -146,6 +146,8 @@ TRANSLATIONS = {
         "run.test_running_msg": "Please complete or abort the current test before switching screens.",
         "run.exit_confirm_title": "Exit Confirmation",
         "run.exit_confirm_msg": "A test is currently in progress. Are you sure you want to exit? Unsaved results will be lost.",
+        "run.wrong_tester_title": "Wrong Tester",
+        "run.wrong_tester_msg": "Wrong tester detected! You are applying force to Tester {used}, but this test is configured for Tester {correct}. Please use the correct tester.",
         
         # Test History
         "hist.title": "Torque Verification History",
@@ -307,6 +309,8 @@ TRANSLATIONS = {
         "run.test_running_msg": "Por favor, conclua ou aborte o teste atual antes de mudar de ecrã.",
         "run.exit_confirm_title": "Confirmação de Saída",
         "run.exit_confirm_msg": "Um teste está atualmente em progresso. Tem a certeza de que deseja sair? Os resultados não guardados serão perdidos.",
+        "run.wrong_tester_title": "Sensor Incorreto",
+        "run.wrong_tester_msg": "Sensor incorreto detetado! Está a aplicar força no Sensor {used}, mas este teste está configurado para o Sensor {correct}. Por favor, utilize o sensor correto.",
         
         # Test History
         "hist.title": "Histórico de Verificação de Torque",
