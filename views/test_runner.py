@@ -101,6 +101,7 @@ class TestRunnerView(ctk.CTkFrame):
         self.auto_capture_state = "IDLE"
         self.tracked_peak = 0.0
         self.polling_started = False
+        self.wrong_sensor_dialog_shown = False
         self.auto_capture_var = ctk.BooleanVar(value=True)
         
         # Grid layout for center alignment
