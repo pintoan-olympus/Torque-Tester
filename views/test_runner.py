@@ -307,15 +307,25 @@ class TestRunnerView(ctk.CTkFrame):
         status_card = ctk.CTkFrame(center_frame, fg_color="gray10", corner_radius=10)
         status_card.grid(row=0, column=1, sticky="nsew", rowspan=2, padx=20, pady=10)
         status_card.grid_columnconfigure(0, weight=1)
-        status_card.grid_rowconfigure((0, 1), weight=1)
+        status_card.grid_rowconfigure((0, 1, 2), weight=1)
         
         self.meas_status_lbl = ctk.CTkLabel(
             status_card,
-            text=i18n.t("run.measuring").upper(),
+            text=f"START SAMPLE {self.current_sample_idx + 1}",
             font=ctk.CTkFont(size=24, weight="bold"),
             text_color="cyan"
         )
         self.meas_status_lbl.grid(row=0, column=0, sticky="s", pady=5)
+        
+        # Highlighted Active Sensor Callout
+        sensor_id = (self.test_def.default_tester_id or 'A').upper()
+        self.use_sensor_lbl = ctk.CTkLabel(
+            status_card,
+            text=i18n.t("run.use_sensor", name=sensor_id).upper(),
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#FFD700"  # Glowing Golden Yellow
+        )
+        self.use_sensor_lbl.grid(row=1, column=0, pady=5)
         
         # Acceptable range badge
         lbl_spec_badge = ctk.CTkLabel(
@@ -328,7 +338,7 @@ class TestRunnerView(ctk.CTkFrame):
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color="white"
         )
-        lbl_spec_badge.grid(row=1, column=0, sticky="n", pady=5)
+        lbl_spec_badge.grid(row=2, column=0, sticky="n", pady=5)
         
         # Real-time displays row
         displays_frame = ctk.CTkFrame(self.container, fg_color="transparent")
@@ -457,7 +467,8 @@ class TestRunnerView(ctk.CTkFrame):
             self.dir_anim.set_direction("IDLE")
             # Resume measuring/polling
             self.is_active = True
-            self.reset_sensor_peak()
+            self.reset_sensor_peak(reset_state=False)
+            self.auto_capture_state = "CAPTURED"
             self.update_progress_and_labels()
 
     def show_pass_screen(self, val, programmatic=False):
@@ -773,6 +784,25 @@ class TestRunnerView(ctk.CTkFrame):
                 if abs_current < reset_threshold:
                     self.auto_capture_state = "IDLE"
                     self.tracked_peak = 0.0
+
+        # Update dynamic status text based on auto_capture_state
+        try:
+            if self.auto_capture_state == "IDLE":
+                status_text = i18n.t("run.start_sample", n=self.current_sample_idx + 1).upper()
+                text_color = "cyan"
+            elif self.auto_capture_state == "RISING":
+                status_text = i18n.t("run.measuring").upper()
+                text_color = "yellow"
+            elif self.auto_capture_state == "CAPTURED":
+                status_text = i18n.t("run.wait").upper()
+                text_color = "orange"
+            else:
+                status_text = i18n.t("run.measuring").upper()
+                text_color = "cyan"
+            
+            self.meas_status_lbl.configure(text=status_text, text_color=text_color)
+        except Exception:
+            pass
         
         self.after(50, self.poll_sensor)
 
@@ -780,10 +810,11 @@ class TestRunnerView(ctk.CTkFrame):
         if hasattr(self.app.sensor, "start_torque_cycle"):
             self.app.sensor.start_torque_cycle(self.test_def.target_value)
 
-    def reset_sensor_peak(self):
+    def reset_sensor_peak(self, reset_state=True):
         if self.app.sensor:
             self.app.sensor.reset_peak()
-            self.auto_capture_state = "IDLE"
+            if reset_state:
+                self.auto_capture_state = "IDLE"
             self.tracked_peak = 0.0
             self.trigger_simulated_torque()
             self.peak_lbl.configure(text=f"{i18n.t('run.peak').upper()}: 0.00 cNm")

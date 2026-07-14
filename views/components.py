@@ -165,11 +165,12 @@ class TorqueGauge(ctk.CTkFrame):
 
 class ScrollableTable(ctk.CTkScrollableFrame):
     """A clean scrollable table widget that fits the modern theme."""
-    def __init__(self, master, headers: list[str], column_weights: list[int] = None, **kwargs):
+    def __init__(self, master, headers: list[str], column_weights: list[int] = None, row_click_callback=None, **kwargs):
         super().__init__(master, **kwargs)
         
         self.headers = headers
         self.column_weights = column_weights or [1] * len(headers)
+        self.row_click_callback = row_click_callback
         
         # Configure layout columns
         for col_idx, weight in enumerate(self.column_weights):
@@ -181,24 +182,43 @@ class ScrollableTable(ctk.CTkScrollableFrame):
             lbl = ctk.CTkLabel(
                 self, 
                 text=header.upper(), 
-                font=ctk.CTkFont(size=11, weight="bold"),
+                font=ctk.CTkFont(size=13, weight="bold"),
                 text_color="gray60",
                 anchor="w",
                 padx=5,
-                pady=5
+                pady=8
             )
             lbl.grid(row=0, column=col_idx, sticky="ew", pady=(0, 5))
             self.header_widgets.append(lbl)
             
         # Storage for table row data
         self.row_widgets = []
+        self.row_frames = []
 
     def clear(self):
         """Delete all records from table."""
         for row in self.row_widgets:
             for widget in row:
-                widget.destroy()
+                if widget and widget.winfo_exists():
+                    widget.destroy()
+        for frame in self.row_frames:
+            if frame and frame.winfo_exists():
+                frame.destroy()
         self.row_widgets.clear()
+        self.row_frames.clear()
+
+    def highlight_rows(self, selected_indices: list[int]):
+        """
+        Highlight rows with selected_indices (0-based indices matching row_widgets).
+        """
+        for idx, frame in enumerate(self.row_frames):
+            row_idx = idx + 1
+            if frame and frame.winfo_exists():
+                if idx in selected_indices:
+                    frame.configure(fg_color="#1a73e8")  # Solid blue highlight
+                else:
+                    row_bg = "gray18" if row_idx % 2 == 0 else "gray12"
+                    frame.configure(fg_color=row_bg)
 
     def add_row(self, cells: list[str], text_color=None, bg_color=None, cell_commands: dict = None):
         """
@@ -211,10 +231,12 @@ class ScrollableTable(ctk.CTkScrollableFrame):
         cell_commands = cell_commands or {}
         
         # Determine background color for row alternating
-        row_bg = bg_color if bg_color else ("gray18" if row_idx % 2 == 0 else "gray15")
+        row_bg = bg_color if bg_color else ("gray18" if row_idx % 2 == 0 else "gray12")
         
         row_frame = ctk.CTkFrame(self, fg_color=row_bg, corner_radius=4)
-        row_frame.grid(row=row_idx, column=0, columnspan=len(self.headers), sticky="ew", pady=1)
+        row_frame.grid(row=row_idx, column=0, columnspan=len(self.headers), sticky="ew", pady=3)
+        self.row_frames.append(row_frame)
+        
         for col_idx, weight in enumerate(self.column_weights):
             row_frame.grid_columnconfigure(col_idx, weight=weight)
             
@@ -227,8 +249,8 @@ class ScrollableTable(ctk.CTkScrollableFrame):
                 widget = ctk.CTkButton(
                     row_frame,
                     text=str(val),
-                    font=ctk.CTkFont(size=12),
-                    height=24,
+                    font=ctk.CTkFont(size=13, weight="bold"),
+                    height=32,
                     corner_radius=4,
                     command=cell_commands[col_idx]
                 )
@@ -236,16 +258,29 @@ class ScrollableTable(ctk.CTkScrollableFrame):
                 widget = ctk.CTkLabel(
                     row_frame,
                     text=str(val),
-                    font=ctk.CTkFont(size=12),
+                    font=ctk.CTkFont(size=14),
                     text_color=text_color or "white",
                     anchor="w",
                     padx=10,
-                    pady=4
+                    pady=10
                 )
             if isinstance(widget, ctk.CTkCheckBox):
                 widget.grid(row=0, column=col_idx, sticky="w", padx=10)
             else:
                 widget.grid(row=0, column=col_idx, sticky="ew", padx=1)
+            
+            # Bind click events for selection (except on interactive buttons)
+            if self.row_click_callback and col_idx not in cell_commands:
+                # 0-based index for the callback
+                current_idx = row_idx - 1
+                widget.bind("<Button-1>", lambda e, r_idx=current_idx: self.row_click_callback(r_idx, False))
+                widget.bind("<Control-Button-1>", lambda e, r_idx=current_idx: self.row_click_callback(r_idx, True))
+                
             widgets.append(widget)
+            
+        if self.row_click_callback:
+            current_idx = row_idx - 1
+            row_frame.bind("<Button-1>", lambda e, r_idx=current_idx: self.row_click_callback(r_idx, False))
+            row_frame.bind("<Control-Button-1>", lambda e, r_idx=current_idx: self.row_click_callback(r_idx, True))
             
         self.row_widgets.append(widgets)

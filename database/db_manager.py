@@ -1202,6 +1202,40 @@ class DatabaseManager:
             logger.error(f"Error resetting all test data: {e}")
             return False, str(e)
 
+    def delete_driver(self, driver_id: int) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM torque_drivers WHERE id = ?", (driver_id,))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting driver {driver_id}: {e}")
+            raise e
+
+    def delete_test_definition(self, test_def_id: int) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM test_definitions WHERE id = ?", (test_def_id,))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting test definition {test_def_id}: {e}")
+            raise e
+
+    def delete_battery(self, battery_id: int) -> bool:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM battery_items WHERE battery_id = ?", (battery_id,))
+                cursor.execute("DELETE FROM test_batteries WHERE id = ?", (battery_id,))
+                conn.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting battery {battery_id}: {e}")
+            raise e
+
     def backup_db(self):
         """Automatically backs up the SQLite database to a local backups/ folder, maintaining a maximum of 7 backups."""
         db_type = self.db_config.get("db_type", "sqlite")

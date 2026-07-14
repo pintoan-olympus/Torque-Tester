@@ -25,7 +25,7 @@ class DriverManagerView(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
         
         # --- LEFT PANEL: Driver Form ---
-        self.form_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="gray15")
+        self.form_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="gray12")
         self.form_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         self.form_frame.grid_columnconfigure(0, weight=1)
         
@@ -44,12 +44,12 @@ class DriverManagerView(ctk.CTkFrame):
         
         # Driver ID
         ctk.CTkLabel(scroll_fields, text="Driver ID (Unique Tag):", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(5, 1), padx=10, anchor="w")
-        self.driver_id_entry = ctk.CTkEntry(scroll_fields, placeholder_text="e.g. DRV-001")
+        self.driver_id_entry = ctk.CTkEntry(scroll_fields, placeholder_text="e.g. DRV-001", height=38)
         self.driver_id_entry.pack(fill="x", padx=10, pady=(0, 5))
         
         # Type
         ctk.CTkLabel(scroll_fields, text="Driver Type:", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(5, 1), padx=10, anchor="w")
-        self.type_combo = ctk.CTkComboBox(scroll_fields, values=["Electric", "Pneumatic", "Manual Click", "Screwdriver", "Hydraulic"])
+        self.type_combo = ctk.CTkComboBox(scroll_fields, values=["Electric", "Pneumatic", "Manual Click", "Screwdriver", "Hydraulic"], height=38)
         self.type_combo.pack(fill="x", padx=10, pady=(0, 5))
         
         # Brand & Model
@@ -58,11 +58,11 @@ class DriverManagerView(ctk.CTkFrame):
         brand_model_frame.grid_columnconfigure((0, 1), weight=1)
         
         ctk.CTkLabel(brand_model_frame, text="Brand:", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=0, sticky="w", padx=2)
-        self.brand_entry = ctk.CTkEntry(brand_model_frame, placeholder_text="e.g. Atlas Copco")
+        self.brand_entry = ctk.CTkEntry(brand_model_frame, placeholder_text="e.g. Atlas Copco", height=38)
         self.brand_entry.grid(row=1, column=0, sticky="ew", padx=2)
         
         ctk.CTkLabel(brand_model_frame, text="Model:", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=1, sticky="w", padx=2)
-        self.model_entry = ctk.CTkEntry(brand_model_frame, placeholder_text="e.g. MicroTorque")
+        self.model_entry = ctk.CTkEntry(brand_model_frame, placeholder_text="e.g. MicroTorque", height=38)
         self.model_entry.grid(row=1, column=1, sticky="ew", padx=2)
         
         # Limits (Min/Max Torque cNm)
@@ -71,16 +71,16 @@ class DriverManagerView(ctk.CTkFrame):
         limits_frame.grid_columnconfigure((0, 1), weight=1)
         
         ctk.CTkLabel(limits_frame, text="Min Torque (cNm):", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=0, sticky="w", padx=2)
-        self.min_entry = ctk.CTkEntry(limits_frame, placeholder_text="0.0")
+        self.min_entry = ctk.CTkEntry(limits_frame, placeholder_text="0.0", height=38)
         self.min_entry.grid(row=1, column=0, sticky="ew", padx=2)
         
         ctk.CTkLabel(limits_frame, text="Max Torque (cNm):", font=ctk.CTkFont(size=11, weight="bold")).grid(row=0, column=1, sticky="w", padx=2)
-        self.max_entry = ctk.CTkEntry(limits_frame, placeholder_text="50.0")
+        self.max_entry = ctk.CTkEntry(limits_frame, placeholder_text="50.0", height=38)
         self.max_entry.grid(row=1, column=1, sticky="ew", padx=2)
         
         # Workbench
         ctk.CTkLabel(scroll_fields, text="Assigned Workbench:", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(5, 1), padx=10, anchor="w")
-        self.workbench_entry = ctk.CTkEntry(scroll_fields, placeholder_text="e.g. Assembly Bench 4")
+        self.workbench_entry = ctk.CTkEntry(scroll_fields, placeholder_text="e.g. Assembly Bench 4", height=38)
         self.workbench_entry.pack(fill="x", padx=10, pady=(0, 5))
         
         # Calibration Dates (Last, Next)
@@ -89,16 +89,16 @@ class DriverManagerView(ctk.CTkFrame):
         cal_frame.grid_columnconfigure((0, 1), weight=1)
         
         ctk.CTkLabel(cal_frame, text="Last Calibration (YYYY-MM-DD):", font=ctk.CTkFont(size=10, weight="bold")).grid(row=0, column=0, sticky="w", padx=2)
-        self.last_cal_entry = ctk.CTkEntry(cal_frame, placeholder_text="YYYY-MM-DD")
+        self.last_cal_entry = ctk.CTkEntry(cal_frame, placeholder_text="YYYY-MM-DD", height=38)
         self.last_cal_entry.grid(row=1, column=0, sticky="ew", padx=2)
         
         ctk.CTkLabel(cal_frame, text="Calibration Due (YYYY-MM-DD):", font=ctk.CTkFont(size=10, weight="bold")).grid(row=0, column=1, sticky="w", padx=2)
-        self.due_cal_entry = ctk.CTkEntry(cal_frame, placeholder_text="YYYY-MM-DD")
+        self.due_cal_entry = ctk.CTkEntry(cal_frame, placeholder_text="YYYY-MM-DD", height=38)
         self.due_cal_entry.grid(row=1, column=1, sticky="ew", padx=2)
         
         # Notes
         ctk.CTkLabel(scroll_fields, text="Notes:", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(5, 1), padx=10, anchor="w")
-        self.notes_entry = ctk.CTkEntry(scroll_fields, placeholder_text="Maintenance info...")
+        self.notes_entry = ctk.CTkEntry(scroll_fields, placeholder_text="Maintenance info...", height=38)
         self.notes_entry.pack(fill="x", padx=10, pady=(0, 5))
 
         # Default Test Template
@@ -106,12 +106,13 @@ class DriverManagerView(ctk.CTkFrame):
         self.default_test_combo = ctk.CTkComboBox(
             scroll_fields, 
             values=["None"],
-            width=350
+            width=350,
+            height=38
         )
         self.default_test_combo.pack(fill="x", padx=10, pady=(0, 5))
         # Handedness
         ctk.CTkLabel(scroll_fields, text="Handedness (Direction):", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(5, 1), padx=10, anchor="w")
-        self.handedness_combo = ctk.CTkComboBox(scroll_fields, values=["Right (CW, +)", "Left (CCW, -)"])
+        self.handedness_combo = ctk.CTkComboBox(scroll_fields, values=["Right (CW, +)", "Left (CCW, -)"], height=38)
         self.handedness_combo.pack(fill="x", padx=10, pady=(0, 5))
         
         # Active Checkbox
@@ -133,6 +134,8 @@ class DriverManagerView(ctk.CTkFrame):
             text="Save Driver", 
             fg_color="green", 
             hover_color="darkgreen",
+            height=48,
+            font=ctk.CTkFont(size=14, weight="bold"),
             command=self.save_driver
         )
         self.save_btn.grid(row=0, column=0, padx=2, sticky="ew")
@@ -142,15 +145,17 @@ class DriverManagerView(ctk.CTkFrame):
             text="Clear Form", 
             fg_color="gray30", 
             hover_color="gray40", 
+            height=48,
+            font=ctk.CTkFont(size=14, weight="bold"),
             command=self.clear_form
         )
         self.clear_btn.grid(row=0, column=1, padx=2, sticky="ew")
         
         # --- RIGHT PANEL: Drivers Registry ---
-        self.registry_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="gray15")
+        self.registry_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="gray12")
         self.registry_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         self.registry_frame.grid_columnconfigure(0, weight=1)
-        self.registry_frame.grid_rowconfigure(2, weight=1)
+        self.registry_frame.grid_rowconfigure(2, weight=0)
         
         # Registry Title
         reg_title = ctk.CTkLabel(self.registry_frame, text="DRIVER REGISTRY", font=ctk.CTkFont(size=14, weight="bold"))
@@ -158,12 +163,13 @@ class DriverManagerView(ctk.CTkFrame):
 
         # Search Bar Frame
         search_frame = ctk.CTkFrame(self.registry_frame, fg_color="transparent")
-        search_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 10))
+        search_frame.grid(row=1, column=0, sticky="ew", padx=15, pady=0)
         search_frame.grid_columnconfigure(0, weight=1)
 
         self.search_entry = ctk.CTkEntry(
             search_frame,
-            placeholder_text="Search by Driver ID, Brand, Model, Type, or Workbench..."
+            placeholder_text="Search by Driver ID, Brand, Model, Type, or Workbench...",
+            height=38
         )
         self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         self.search_entry.bind("<KeyRelease>", lambda event: self.filter_drivers())
@@ -172,6 +178,7 @@ class DriverManagerView(ctk.CTkFrame):
             search_frame,
             text="Clear",
             width=60,
+            height=38,
             fg_color="gray30",
             hover_color="gray40",
             command=self.clear_search
@@ -183,24 +190,40 @@ class DriverManagerView(ctk.CTkFrame):
         # Table
         self.table = ScrollableTable(
             self.registry_frame,
-            headers=["☐", "ID", "Type", "Hand", "Workbench", "Range (cNm)", "Cal Due", "Status", "Edit", "Clone"],
-            column_weights=[1, 2, 2, 1, 2, 2, 2, 2, 1, 1],
+            headers=["ID", "Type", "Hand", "Workbench", "Range (cNm)", "Cal Due", "Status"],
+            column_weights=[2, 2, 1, 2, 2, 2, 2],
+            row_click_callback=self.on_row_clicked,
             fg_color="gray12"
         )
-        self.table.grid(row=2, column=0, sticky="nsew", padx=15, pady=(0, 15))
+        self.table.grid(row=3, column=0, sticky="nsew", padx=15, pady=(0, 10))
+        self.registry_frame.grid_rowconfigure(3, weight=1)
 
-        # Replace first header label with a checkbox
-        self.table.header_widgets[0].destroy()
-        self.select_all_var = ctk.BooleanVar(value=False)
-        self.select_all_cb = ctk.CTkCheckBox(
-            self.table, 
-            text="", 
-            variable=self.select_all_var, 
-            width=20,
-            command=self.toggle_select_all
+        # Action Bar (Edit, Clone, Delete) - hidden initially
+        self.action_bar = ctk.CTkFrame(self.registry_frame, fg_color="gray18", corner_radius=6)
+        
+        self.edit_action_btn = ctk.CTkButton(
+            self.action_bar, text="Edit Selected", fg_color="#3a86ff", hover_color="#2b6bcf",
+            height=45,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            command=self.edit_selected_driver
         )
-        self.select_all_cb.grid(row=0, column=0, sticky="w", padx=10, pady=(0, 5))
-        self.table.header_widgets[0] = self.select_all_cb
+        self.edit_action_btn.pack(side="left", padx=10, pady=0)
+        
+        self.clone_action_btn = ctk.CTkButton(
+            self.action_bar, text="Clone Selected", fg_color="gray30", hover_color="gray40",
+            height=45,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            command=self.clone_selected_driver
+        )
+        self.clone_action_btn.pack(side="left", padx=10, pady=0)
+        
+        self.delete_action_btn = ctk.CTkButton(
+            self.action_bar, text="Delete Selected", fg_color="#a83232", hover_color="#7a1e1e",
+            height=45,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            command=self.delete_selected_drivers
+        )
+        self.delete_action_btn.pack(side="left", padx=10, pady=0)
 
         # Bulk Edit Action Bar (hidden initially)
         self.bulk_bar = ctk.CTkFrame(self.registry_frame, fg_color="gray18", corner_radius=6)
@@ -232,52 +255,145 @@ class DriverManagerView(ctk.CTkFrame):
         )
         self.bulk_clear_btn.pack(side="right", padx=10, pady=10)
         
+        self.table_items = []
         self.load_drivers()
 
-    def toggle_select_all(self):
-        drivers = self.app.db.get_all_drivers()
-        # Find currently filtered drivers
-        search_query = self.search_entry.get().lower() if getattr(self, 'search_entry', None) else ""
-        filtered_drivers = [
-            d for d in drivers 
-            if not search_query or
-               search_query in (d.driver_id or "").lower() or
-               search_query in (d.brand or "").lower() or
-               search_query in (d.model or "").lower() or
-               search_query in (d.driver_type or "").lower() or
-               search_query in (d.workbench or "").lower()
-        ]
+    def on_row_clicked(self, row_idx: int, ctrl_pressed: bool):
+        if row_idx < len(self.table_items):
+            selected_driver = self.table_items[row_idx]
+            driver_id = selected_driver.id
+            
+            if ctrl_pressed:
+                if driver_id in self.selected_driver_ids:
+                    self.selected_driver_ids.discard(driver_id)
+                else:
+                    self.selected_driver_ids.add(driver_id)
+            else:
+                if len(self.selected_driver_ids) == 1 and driver_id in self.selected_driver_ids:
+                    self.selected_driver_ids.clear()
+                else:
+                    self.selected_driver_ids.clear()
+                    self.selected_driver_ids.add(driver_id)
+            
+            # Map selected IDs to row indices in self.table_items to highlight
+            selected_indices = [
+                idx for idx, d in enumerate(self.table_items)
+                if d.id in self.selected_driver_ids
+            ]
+            self.table.highlight_rows(selected_indices)
+            
+            self.update_action_bar_visibility()
+            self.update_bulk_bar_visibility()
+            
+            # If exactly 1 driver is selected, load it into the form for editing
+            if len(self.selected_driver_ids) == 1:
+                active_id = list(self.selected_driver_ids)[0]
+                active_drv = next(d for d in self.table_items if d.id == active_id)
+                self.edit_driver_selected(active_drv)
+            else:
+                self.clear_form(clear_selection=False)
+
+    def update_action_bar_visibility(self):
+        count = len(self.selected_driver_ids)
+        if count == 1:
+            self.action_bar.grid(row=2, column=0, sticky="ew", padx=15, pady=0)
+            self.edit_action_btn.pack(side="left", padx=10, pady=0)
+            self.clone_action_btn.pack(side="left", padx=10, pady=0)
+            self.delete_action_btn.pack(side="left", padx=10, pady=0)
+            self.delete_action_btn.configure(text="Delete Selected")
+        elif count > 1:
+            self.action_bar.grid(row=2, column=0, sticky="ew", padx=15, pady=0)
+            self.edit_action_btn.pack_forget()
+            self.clone_action_btn.pack_forget()
+            self.delete_action_btn.pack(side="left", padx=10, pady=0)
+            self.delete_action_btn.configure(text=f"Delete {count} Selected")
+        else:
+            self.action_bar.grid_forget()
+
+    def edit_selected_driver(self):
+        if len(self.selected_driver_ids) == 1:
+            driver_id = list(self.selected_driver_ids)[0]
+            driver = next(d for d in self.table_items if d.id == driver_id)
+            self.edit_driver_selected(driver)
+
+    def clone_selected_driver(self):
+        if len(self.selected_driver_ids) == 1:
+            driver_id = list(self.selected_driver_ids)[0]
+            driver = next(d for d in self.table_items if d.id == driver_id)
+            self.clone_driver_selected(driver)
+
+    def delete_selected_drivers(self):
+        from tkinter import messagebox
+        count = len(self.selected_driver_ids)
+        if count == 0:
+            return
+            
+        confirm = messagebox.askyesno(
+            "Confirm Delete",
+            f"Are you sure you want to delete the {count} selected driver(s)?"
+        )
+        if not confirm:
+            return
+            
+        success_count = 0
+        deactivated_count = 0
+        error_msgs = []
         
-        if self.select_all_var.get():
-            for d in filtered_drivers:
-                self.selected_driver_ids.add(d.id)
-        else:
-            for d in filtered_drivers:
-                self.selected_driver_ids.discard(d.id)
+        # Make a copy of selected IDs since we will clear selection
+        driver_ids_to_delete = list(self.selected_driver_ids)
+        
+        for driver_id in driver_ids_to_delete:
+            driver_obj = next((d for d in self.table_items if d.id == driver_id), None)
+            if not driver_obj:
+                continue
                 
+            try:
+                self.app.db.delete_driver(driver_id)
+                success_count += 1
+                log_action(self.app.user_manager.current_user.username, "DELETE_DRIVER", f"Driver ID: {driver_obj.driver_id}")
+            except Exception as e:
+                # Handle foreign key constraint failure
+                if "FOREIGN KEY" in str(e).upper() or "CONSTRAINT" in str(e).upper():
+                    deactivate_confirm = messagebox.askyesno(
+                        "Historical Logs Found",
+                        f"Driver '{driver_obj.driver_id}' has historical test session logs and cannot be permanently deleted.\n\n"
+                        "Would you like to deactivate it instead? (This will hide it from the dashboard but keep the logs)."
+                    )
+                    if deactivate_confirm:
+                        driver_obj.active = False
+                        if self.app.db.update_driver(driver_obj):
+                            deactivated_count += 1
+                            log_action(self.app.user_manager.current_user.username, "DEACTIVATE_DRIVER", f"Driver ID: {driver_obj.driver_id}")
+                        else:
+                            error_msgs.append(f"Failed to deactivate '{driver_obj.driver_id}'")
+                else:
+                    error_msgs.append(f"Error deleting '{driver_obj.driver_id}': {e}")
+                    
+        self.clear_form(clear_selection=True)
         self.load_drivers()
-        self.update_bulk_bar_visibility()
-
-    def on_driver_chk_toggled(self, driver_id, is_checked):
-        if is_checked:
-            self.selected_driver_ids.add(driver_id)
+        
+        # Display completion status
+        status_msg = f"Deleted {success_count} driver(s)."
+        if deactivated_count > 0:
+            status_msg += f" Deactivated {deactivated_count} driver(s)."
+        if error_msgs:
+            status_msg += f" Errors: {', '.join(error_msgs)}"
+            self.status_lbl.configure(text=status_msg, text_color="red")
         else:
-            self.selected_driver_ids.discard(driver_id)
-            self.select_all_var.set(False)
-        self.update_bulk_bar_visibility()
+            self.status_lbl.configure(text=status_msg, text_color="green")
 
     def update_bulk_bar_visibility(self):
         count = len(self.selected_driver_ids)
         if count > 0:
             self.bulk_lbl.configure(text=f"Default test edit ({count} selected):")
-            self.bulk_bar.grid(row=3, column=0, sticky="ew", padx=15, pady=(0, 10))
+            self.bulk_bar.grid(row=4, column=0, sticky="ew", padx=15, pady=(0, 10))
         else:
             self.bulk_bar.grid_forget()
 
     def clear_driver_selection(self):
         self.selected_driver_ids.clear()
-        self.select_all_var.set(False)
         self.load_drivers()
+        self.update_action_bar_visibility()
         self.update_bulk_bar_visibility()
 
     def apply_bulk_edit(self):
@@ -349,6 +465,8 @@ class DriverManagerView(ctk.CTkFrame):
                    query in (d.workbench or "").lower()
             ]
         
+        self.table_items = drivers
+        
         for d in drivers:
             # Check calibration due
             is_overdue = False
@@ -366,39 +484,25 @@ class DriverManagerView(ctk.CTkFrame):
             active_disp = "Active" if d.active else "Inactive"
             hand_disp = "LH" if getattr(d, 'handedness', 'right') == 'left' else "RH"
             
-            is_checked = d.id in self.selected_driver_ids
-            def make_chk(parent, d_id=d.id, val_checked=is_checked):
-                var = ctk.BooleanVar(value=val_checked)
-                cb = ctk.CTkCheckBox(
-                    parent, 
-                    text="", 
-                    variable=var, 
-                    width=20,
-                    command=lambda: self.on_driver_chk_toggled(d_id, var.get())
-                )
-                return cb
-
-            cell_commands = {
-                8: lambda driver_obj=d: self.edit_driver_selected(driver_obj),
-                9: lambda driver_obj=d: self.clone_driver_selected(driver_obj)
-            }
-            
             self.table.add_row(
                 [
-                    make_chk,
                     d.driver_id,
                     d.driver_type,
                     hand_disp,
                     d.workbench,
                     f"{d.torque_min}-{d.torque_max}",
                     cal_disp,
-                    active_disp,
-                    "Edit",
-                    "Clone"
+                    active_disp
                 ],
-                text_color=row_color,
-                cell_commands=cell_commands
+                text_color=row_color
             )
+            
+        # Re-apply highlights after loading rows
+        selected_indices = [
+            idx for idx, d in enumerate(self.table_items)
+            if d.id in self.selected_driver_ids
+        ]
+        self.table.highlight_rows(selected_indices)
 
     def clone_driver_selected(self, driver: TorqueDriver):
         self.edit_driver_selected(driver)
@@ -409,7 +513,7 @@ class DriverManagerView(ctk.CTkFrame):
 
     def edit_driver_selected(self, driver: TorqueDriver):
         self.selected_driver_id = driver.id
-        self.form_title.configure(text=f"EDIT DRIVER ID #{driver.id}")
+        self.form_title.configure(text=f"EDIT DRIVER ID #{driver.driver_id}")
         self.driver_id_entry.configure(state="normal")
         
         # Load fields
@@ -460,7 +564,7 @@ class DriverManagerView(ctk.CTkFrame):
         self.active_var.set(driver.active)
         self.status_lbl.configure(text="")
 
-    def clear_form(self):
+    def clear_form(self, clear_selection=True):
         self.selected_driver_id = None
         self.form_title.configure(text="REGISTER NEW DRIVER")
         self.driver_id_entry.configure(state="normal")
@@ -478,6 +582,12 @@ class DriverManagerView(ctk.CTkFrame):
         self.handedness_combo.set("Right (CW, +)")
         self.active_var.set(True)
         self.status_lbl.configure(text="")
+        
+        if clear_selection:
+            self.selected_driver_ids.clear()
+            self.table.highlight_rows([])
+            self.update_action_bar_visibility()
+            self.update_bulk_bar_visibility()
 
     def save_driver(self):
         # Validate inputs
