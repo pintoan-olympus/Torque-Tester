@@ -167,6 +167,33 @@ test_runner = TestRunnerView(
 test_runner.start_measurements()
 assert test_runner.is_active is True
 
+# Verify Wrong Tester Detection
+print("Testing Wrong Tester Detection...")
+import tkinter.messagebox as messagebox
+original_showwarning = messagebox.showwarning
+warning_calls = []
+def mock_showwarning(title, message):
+    warning_calls.append((title, message))
+messagebox.showwarning = mock_showwarning
+
+if len(app_window.sensors) > 1 and app_window.sensors[1]:
+    original_read_torque = app_window.sensors[1].read_torque
+    app_window.sensors[1].read_torque = lambda: 2.5  # Simulate incorrect torque applied to Tester B
+    
+    # Run poll cycle
+    test_runner.poll_sensor()
+    
+    # Verify dialog was triggered with correct text
+    assert len(warning_calls) == 1
+    assert "wrong" in warning_calls[0][1].lower() or "incorrect" in warning_calls[0][1].lower()
+    print("[OK] Wrong Tester Dialog triggered correctly.")
+    
+    # Restore original mock/state
+    app_window.sensors[1].read_torque = original_read_torque
+    messagebox.showwarning = original_showwarning
+else:
+    print("[SKIP] Wrong Tester Dialog test skipped (requires multiple sensors configured).")
+
 # Capture 5 samples (min 3, max 5)
 for i in range(test_def.num_samples):
     test_runner.capture_sample(val=test_def.target_value)
