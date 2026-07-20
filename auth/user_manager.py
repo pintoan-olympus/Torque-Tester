@@ -1,4 +1,4 @@
-import os
+import hashlib
 from typing import Optional
 import config
 from utils.logger import get_logger, log_action
@@ -7,12 +7,11 @@ from database.db_manager import DatabaseManager
 
 logger = get_logger()
 
-# Hashing strategy with fallback if bcrypt is not installed
+# Hashing strategy using bcrypt with hashlib fallback
 try:
     import bcrypt
     HAS_BCRYPT = True
 except ImportError:
-    import hashlib
     HAS_BCRYPT = False
     logger.warning("bcrypt module not found. Falling back to SHA-256 for password hashing.")
 
@@ -22,7 +21,7 @@ def hash_password(password: str) -> str:
         salt = bcrypt.gensalt()
         return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     else:
-        # Simple salted SHA-256 fallback
+        # Salted SHA-256 fallback
         salt = "TorqueTesterAppSalt"
         return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
 
@@ -34,7 +33,7 @@ def verify_password(password: str, hashed: str) -> bool:
         try:
             return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
         except Exception:
-            # If the database was created with SHA-256 but we now have bcrypt, try fallback
+            # If the database password was stored in SHA-256 format, try fallback comparison
             pass
     
     # SHA-256 fallback comparison
@@ -62,7 +61,7 @@ class UserManager:
                 active=True
             )
             self.db.create_user(admin_user)
-            log_action("SYSTEM", "SEED_ADMIN", "Default admin account created ('admin' / 'admin')")
+            log_action("SYSTEM", "SEED_ADMIN", "Default admin account created ('admin')")
 
     def login(self, username: str, password: str) -> bool:
         """Authenticate user and establish session."""

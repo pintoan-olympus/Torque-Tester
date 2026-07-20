@@ -87,8 +87,32 @@ class TorqueTesterApp(ctk.CTk):
         # Handle close window event
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         
-        # Periodically monitor sensor status
+        import time
+        self.last_activity_time = time.time()
+        self.bind_all("<Key>", self.reset_activity_timer, add="+")
+        self.bind_all("<Button>", self.reset_activity_timer, add="+")
+
+        # Periodically monitor sensor status and session timeout
         self.update_sensor_status_bar()
+        self.check_session_timeout()
+
+    def reset_activity_timer(self, event=None):
+        import time
+        self.last_activity_time = time.time()
+
+    def check_session_timeout(self):
+        import time
+        if self.user_manager and self.user_manager.current_user:
+            timeout_minutes = self.hw_config.get_setting("session_timeout_minutes", 30)
+            if timeout_minutes > 0 and not self.is_test_running():
+                if time.time() - getattr(self, 'last_activity_time', time.time()) > (timeout_minutes * 60):
+                    from utils.logger import log_action
+                    log_action(self.user_manager.current_user.username, "AUTO_LOGOUT", "Session timed out due to inactivity")
+                    self.logout()
+        try:
+            self.after(10000, self.check_session_timeout)
+        except Exception:
+            pass
 
     def show_login(self):
         """Display login frame and hide navigation sidebar."""

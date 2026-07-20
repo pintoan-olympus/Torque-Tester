@@ -16,6 +16,7 @@ class DirectionAnimation(ctk.CTkCanvas):
         self.angle = 0
         self.direction = "IDLE"  # "CW", "CCW", "IDLE", or "PASS"
         self.pass_value = 0.0
+        self._after_id = None
         self.draw_idle()
         self.animate()
 
@@ -45,6 +46,12 @@ class DirectionAnimation(ctk.CTkCanvas):
         self.create_text(cx, cy + 12, text=f"{val:.2f}", fill="white", font=("Arial", 14, "bold"))
 
     def animate(self):
+        try:
+            if not self.winfo_exists():
+                return
+        except Exception:
+            return
+
         # We only redraw when active to prevent CPU load and GUI stuttering
         if self.direction not in ("IDLE", "PASS"):
             self.delete("all")
@@ -72,7 +79,19 @@ class DirectionAnimation(ctk.CTkCanvas):
             self.create_text(cx, cy, text=text_dir, fill=color, font=("Arial", 16, "bold"))
 
         # Re-schedule animation loop
-        self.after(50, self.animate)
+        try:
+            self._after_id = self.after(50, self.animate)
+        except Exception:
+            pass
+
+    def destroy(self):
+        if hasattr(self, "_after_id") and self._after_id:
+            try:
+                self.after_cancel(self._after_id)
+            except Exception:
+                pass
+            self._after_id = None
+        super().destroy()
 
 
 class TestRunnerView(ctk.CTkFrame):

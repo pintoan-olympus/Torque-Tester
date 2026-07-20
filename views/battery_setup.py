@@ -375,10 +375,12 @@ class BatterySetupView(ctk.CTkFrame):
 
         self.table_items = batteries
 
+        counts_map = self.app.db.get_all_battery_item_counts()
+
         for b in batteries:
-            # Count steps
-            items = self.app.db.get_battery_items(b.id)
-            steps_count = f"{len(items)} step(s)"
+            # Count steps via single query map
+            cnt = counts_map.get(b.id, 0)
+            steps_count = f"{cnt} step(s)"
             active_disp = "Active" if b.active else "Inactive"
             text_color = "green" if b.active else "gray60"
 

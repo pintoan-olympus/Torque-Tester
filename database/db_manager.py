@@ -828,6 +828,21 @@ class DatabaseManager:
             logger.error(f"Error fetching battery items for battery {battery_id}: {e}")
         return items
 
+    def get_all_battery_item_counts(self) -> dict[int, int]:
+        """Returns a mapping of battery_id to count of items in 1 query to avoid N+1 queries."""
+        counts = {}
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT battery_id, COUNT(*) as cnt FROM battery_items GROUP BY battery_id")
+                for row in cursor.fetchall():
+                    counts[row["battery_id"]] = row["cnt"]
+        except Exception as e:
+            logger.error(f"Error fetching battery item counts: {e}")
+        return counts
+
+
+
     def set_battery_items(self, battery_id: int, ordered_test_def_ids: list[int]) -> bool:
         try:
             with self.get_connection() as conn:
@@ -1072,7 +1087,34 @@ class DatabaseManager:
             logger.error(f"Error fetching session by id {session_id}: {e}")
         return None
 
+    def get_user_by_id(self, user_id: int) -> Optional[User]:
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+                row = cursor.fetchone()
+                if row:
+                    return User(
+                        id=row["id"],
+                        username=row["username"],
+                        password_hash=row["password_hash"],
+                        full_name=row["full_name"],
+                        access_level=row["access_level"],
+                        active=bool(row["active"])
+                    )
+        except Exception as e:
+            logger.error(f"Error fetching user by id {user_id}: {e}")
+        return None
+
     def export_table_to_csv(self, table_name: str, file_path: str) -> bool:
+        allowed_tables = {
+            "users", "torque_drivers", "test_definitions", 
+            "test_batteries", "battery_items", "test_sessions", "test_measurements"
+        }
+        if table_name not in allowed_tables:
+            logger.error(f"Invalid table name for export: {table_name}")
+            return False
+
         try:
             import csv
             with self.get_connection() as conn:
@@ -1093,6 +1135,27 @@ class DatabaseManager:
     def import_table_from_csv(self, table_name: str, file_path: str) -> dict:
         import csv
         stats = {"added": 0, "updated": 0, "failed": 0}
+        
+        valid_columns_map = {
+            "torque_drivers": {
+                "driver_id", "serial_number", "model", "brand", "driver_type",
+                "handedness", "min_torque", "max_torque", "default_test_id",
+                "default_battery_id", "default_tester_id", "default_workbench",
+                "last_calibration_date", "next_calibration_date", "active"
+            },
+            "test_definitions": {
+                "name", "description", "test_type", "target_value",
+                "tolerance_plus", "tolerance_minus", "num_samples",
+                "default_tester_id", "unit", "active"
+            }
+        }
+        
+        if table_name not in valid_columns_map:
+            logger.error(f"Unsupported table name for import: {table_name}")
+            return stats
+
+        allowed_cols = valid_columns_map[table_name]
+
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
@@ -1101,36 +1164,41 @@ class DatabaseManager:
                     
                     for row in reader:
                         try:
-                            if table_name == "torque_drivers":
-                                cursor.execute("SELECT id FROM torque_drivers WHERE driver_id = ?", (row["driver_id"],))
+                            # Filter row keys to only allowed schema columns
+                            clean_row = {k: v for k, v in row.items() if k in allowed_cols}
+                            
+                            if table_name == "torque_drivers" and "driver_id" in clean_row:
+                                cursor.execute("SELECT id FROM torque_drivers WHERE driver_id = ?", (clean_row["driver_id"],))
                                 exists = cursor.fetchone()
-                                if exists:
-                                    cols = [f"{k} = ?" for k in row.keys() if k != "id" and k != "driver_id"]
-                                    vals = [row[k] for k in row.keys() if k != "id" and k != "driver_id"]
-                                    vals.append(row["driver_id"])
-                                    cursor.execute(f"UPDATE torque_drivers SET {', '.join(cols)} WHERE driver_id = ?", vals)
+                                update_cols = [k for k in clean_row.keys() if k != "driver_id"]
+                                if exists and update_cols:
+                                    cols_str = ", ".join([f"{k} = ?" for k in update_cols])
+                                    vals = [clean_row[k] for k in update_cols] + [clean_row["driver_id"]]
+                                    cursor.execute(f"UPDATE torque_drivers SET {cols_str} WHERE driver_id = ?", vals)
                                     stats["updated"] += 1
                                 else:
-                                    cols = [k for k in row.keys() if k != "id"]
-                                    vals = [row[k] for k in cols]
+                                    cols = list(clean_row.keys())
+                                    vals = [clean_row[k] for k in cols]
                                     placeholders = ", ".join(["?"] * len(cols))
-                                    cursor.execute(f"INSERT INTO torque_drivers ({', '.join(cols)}) VALUES ({placeholders})", vals)
+                                    cols_str = ", ".join(cols)
+                                    cursor.execute(f"INSERT INTO torque_drivers ({cols_str}) VALUES ({placeholders})", vals)
                                     stats["added"] += 1
                                     
-                            elif table_name == "test_definitions":
-                                cursor.execute("SELECT id FROM test_definitions WHERE name = ?", (row["name"],))
+                            elif table_name == "test_definitions" and "name" in clean_row:
+                                cursor.execute("SELECT id FROM test_definitions WHERE name = ?", (clean_row["name"],))
                                 exists = cursor.fetchone()
-                                if exists:
-                                    cols = [f"{k} = ?" for k in row.keys() if k != "id" and k != "name"]
-                                    vals = [row[k] for k in row.keys() if k != "id" and k != "name"]
-                                    vals.append(row["name"])
-                                    cursor.execute(f"UPDATE test_definitions SET {', '.join(cols)} WHERE name = ?", vals)
+                                update_cols = [k for k in clean_row.keys() if k != "name"]
+                                if exists and update_cols:
+                                    cols_str = ", ".join([f"{k} = ?" for k in update_cols])
+                                    vals = [clean_row[k] for k in update_cols] + [clean_row["name"]]
+                                    cursor.execute(f"UPDATE test_definitions SET {cols_str} WHERE name = ?", vals)
                                     stats["updated"] += 1
                                 else:
-                                    cols = [k for k in row.keys() if k != "id"]
-                                    vals = [row[k] for k in cols]
+                                    cols = list(clean_row.keys())
+                                    vals = [clean_row[k] for k in cols]
                                     placeholders = ", ".join(["?"] * len(cols))
-                                    cursor.execute(f"INSERT INTO test_definitions ({', '.join(cols)}) VALUES ({placeholders})", vals)
+                                    cols_str = ", ".join(cols)
+                                    cursor.execute(f"INSERT INTO test_definitions ({cols_str}) VALUES ({placeholders})", vals)
                                     stats["added"] += 1
                         except Exception as item_err:
                             logger.error(f"Error importing row {row} in {table_name}: {item_err}")
