@@ -66,5 +66,5 @@ SENSOR_POLL_INTERVAL_MS = 50
 
 # --- App Info ---
 APP_NAME = "Torque Tester & Calibration System"
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 

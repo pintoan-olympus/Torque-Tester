@@ -1,6 +1,6 @@
 # 🔧 Torque Tester & Calibration System
 
-> **Version 1.5.0** | Python 3.14 | Windows 10/11  
+> **Version 1.5.1** | Python 3.14 | Windows 10/11  
 > Industrial torque tool auditing, peak-torque measurement, and QA compliance logging platform.
 
 ---
@@ -751,6 +751,8 @@ Runs headless end-to-end integration workflows validating DB creation, driver CR
 
 | Version | Date | Changes |
 |---|---|---|
+| `v1.5.1` | 2026-07-20 | Version 1.5.1: Bumped version in configuration system, expanded documentation, updated Version History, and refreshed release tags |
+| `v1.5.0` | 2026-07-20 | Version 1.5.0: Complete application refactoring and security hardening. Introduced `AppState` dataclass, `AutoCaptureStateMachine` engine, `UserRepository` & `DriverRepository`, modular settings panels, `BaseRegistryView` scaffold, `theme.py` design system, salted bcrypt hashing, 5-attempt account lockout, automated `unittest` suite (`tests/`), and GitHub Actions CI workflow |
 | `v1.4.0` | 2026-07-10 | Version 1.4.0: Concurrency optimizations for SQLite database files deployed on shared network folders (WAL journal mode, NORMAL sync, and 30-second busy timeout retries), HMI navigation menu locks during active measurement phases, close-window exit confirmation prompts, and average torque statistics displayed per completed battery step |
 | `v1.2.0` | 2026-07-10 | Version 1.2.0: Battery Test sequences (Admin creation, step-by-step guided flow runner, skip on failure, test retry), Driver Database multi-select checkbox bulk test assignment, and Test Runner UX redesign (removed gauge dial, added instructions card and live feed) |
 | `v1.1.0` | 2026-07-08 | Version 1.1.0: hands-free USB HID barcode scanning, daily/startup rolling SQLite backups, serial connection hot-swap reconnect, config defaults simplification, and build cleanup |
