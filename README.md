@@ -1,6 +1,6 @@
 # 🔧 Torque Tester & Calibration System
 
-> **Version 1.4.0** | Python 3.14 | Windows 10/11  
+> **Version 1.5.0** | Python 3.14 | Windows 10/11  
 > Industrial torque tool auditing, peak-torque measurement, and QA compliance logging platform.
 
 ---
@@ -55,21 +55,23 @@ The application supports the **tool calibration and quality assurance workflow**
 
 | Feature | Description |
 |---|---|
-| **User Login & Session Management** | Secure login with bcrypt-hashed passwords, session-level user tracking |
+| **User Login & Lockout Protection** | Secure login with salted bcrypt password hashing and 5-minute lockout after 5 failed attempts |
 | **Driver Registry** | Register, edit, clone, and search torque drivers with calibration dates and default templates |
 | **Procedure Templates** | Define, clone, and search QA test procedures with tolerance and sample count rules |
 | **Dashboard** | Initialize sessions with barcode scanning or driver select, workbench and templates |
 | **Barcode Scanning (USB HID)** | Hands-free driver profiles loading by capturing rapid scanner keystrokes globally |
-| **Test Runner** | Live torque feed with visual gauge, snap-back peak capture, and sample audits |
+| **AutoCapture Engine** | Isolated state machine for snap-back peak capture with lock/cooldown during WAIT state |
+| **Wrong Tester Warning** | Automatic safety interlock dialog warning operators if force is applied to the wrong sensor |
 | **Test History** | Filterable history table with overall result status and complete CSV export |
-| **Settings — Hardware** | Tabbed configurations, simulator toggles, and dynamic port slots (A through H) |
-| **Settings — Database** | Switch between local SQLite and remote SQL Server connection strings |
+| **Settings — Modular Panels** | Hardware config, DB connection, and system log management split into dedicated sub-panels |
 | **SQLite Rolling Backups** | Auto-creates timestamped SQLite file copies on startup, retaining a maximum of 7 |
 | **Serial Hot-Swap Reconnect** | Background thread auto-reconnect retry loop when hardware is unplugged and reinserted |
-| **Data Management** | CSV export/import per table; full test record wipe with automatic pre-wipe CSV backup |
-| **User Administration** | Create, edit, deactivate users; password reset (Admin only) |
-| **Battery Tests** | Admin-defined sequences of Test Definitions; passes only when all tests result in PASS (Admin only CRUD) |
-| **Bulk Driver Edit** | Multi-select check boxes in Driver Database to batch-update the default test assignment for multiple drivers at once |
+| **Data Management & SQL Injection Shield** | Whitelisted CSV export/import per table with strict schema validation |
+| **User Administration** | Create, edit, deactivate users; password reset and role access management |
+| **Battery Tests** | Admin-defined sequences of Test Definitions; passes only when all tests result in PASS |
+| **Bulk Driver Edit** | Multi-select check boxes in Driver Database to batch-update default test assignments |
+| **AppState Container** | Centralized, typed session state container for active drivers, batteries, and workbenches |
+| **Design System Tokens** | Unified theme system (`Colors`, `Fonts`, `Dimensions`) and reusable `BaseRegistryView` scaffold |
 
 ### Workflow Diagram
 
@@ -84,7 +86,7 @@ The application supports the **tool calibration and quality assurance workflow**
            [Test Runner]
                 │
          ┌── Live sensor polling (150 ms)
-         │── Snap-back peak capture state machine
+         │── Snap-back peak capture state machine (AutoCaptureStateMachine)
          │── Sample logged on peak CAPTURED
          │── Session completes when Max Samples reached
          └── OR operator clicks "Finish" (≥ Min Samples)
@@ -110,11 +112,12 @@ Physical Sensor (RS-232/USB)
 serial_comm.py  ──► read_torque() ──► cNm float
        │
        ▼
-test_runner.py  ──► snap-back state machine
-       │              └──► on CAPTURED → log sample
+engine/auto_capture.py ──► AutoCaptureStateMachine
+       │                    └──► on CAPTURED → log sample
        ▼
-db_manager.py  ──► INSERT test_measurements
-                    UPDATE test_sessions.overall_result
+database/repositories.py ──► UserRepository / DriverRepository / DatabaseManager
+                             └──► INSERT test_measurements
+                             └──► UPDATE test_sessions.overall_result
 ```
 
 ---
@@ -128,9 +131,11 @@ db_manager.py  ──► INSERT test_measurements
 | Language | Python | 3.14 |
 | UI Framework | CustomTkinter | ≥ 5.2.0 |
 | Serial Communication | PySerial | ≥ 3.5 |
-| Password Hashing | bcrypt | ≥ 4.0.0 |
+| Password Hashing | bcrypt / hashlib fallback | ≥ 4.0.0 |
 | Local Database | SQLite3 | Built-in |
 | Remote Database | Microsoft SQL Server | via pyodbc |
+| Automated Testing | unittest / pytest | Built-in |
+| CI/CD | GitHub Actions | v4 |
 | Packaging | PyInstaller | 6.21.0 |
 | Config Files | Python configparser (INI) / JSON | Built-in |
 
@@ -141,38 +146,60 @@ torque_tester/
 │
 ├── main.py                  # Entry point: DPI setup, DB init, app launch
 ├── app.py                   # App shell: view routing, sensor reconnect, status bar
-├── config.py                # Global constants: paths, access levels, test types, defaults
+├── app_state.py             # AppState dataclass: typed session state container
+├── config.py                # Global constants: paths, access levels, test types, enums
+├── theme.py                 # Centralized design system: Colors, Fonts, Dimensions
 ├── hardware_config.py       # Hardware INI read/write manager (hardware.ini)
 ├── requirements.txt         # Python package dependencies
 ├── torque_tester.spec       # PyInstaller build specification
 ├── build.bat                # Helper batch script to run PyInstaller
 │
+├── .github/
+│   └── workflows/
+│       └── ci.yml           # GitHub Actions CI automated testing pipeline
+│
 ├── auth/
 │   ├── login_view.py        # Login screen UI
-│   └── user_manager.py      # User auth: bcrypt hashing, session, access level check
+│   └── user_manager.py      # User auth: bcrypt hashing, 5-attempt lockout, access check
 │
 ├── database/
-│   ├── db_manager.py        # SQLite + SQL Server manager, schema migrations, backups, CRUD
-│   └── models.py            # Dataclass row wrappers (TorqueDriver, TestDefinition, etc.)
+│   ├── db_manager.py        # SQLite + SQL Server manager, schema migrations, backups
+│   ├── models.py            # Dataclass row wrappers (TorqueDriver, TestDefinition, etc.)
+│   └── repositories.py      # Modular entity repositories (UserRepository, DriverRepository)
+│
+├── engine/
+│   └── auto_capture.py      # Standalone AutoCaptureStateMachine business logic
 │
 ├── dev_tools/
+│   ├── verify_v12_workflows.py # Headless integration workflow verification suite
 │   ├── verify_imports.py    # Developer utility: imports verification
 │   └── test_settings_crash.py # Developer utility: settings UI crash test
 │
+├── i18n/
+│   ├── __init__.py          # Internationalization engine
+│   └── translations.py      # English & Portuguese dictionary strings
+│
 ├── sensor/
 │   ├── sensor_interface.py  # Abstract base class for all sensor backends
-│   ├── serial_comm.py       # Real hardware: RS-232 reader, scientific notation parser, auto-reconnect
-│   └── simulator.py         # Software simulator: generates synthetic torque waveforms
+│   ├── serial_comm.py       # Real hardware: RS-232 reader, scientific notation parser
+│   └── simulator.py         # Software simulator: thread-safe synthetic torque generator
+│
+├── tests/
+│   ├── test_auto_capture.py # Unit tests for AutoCaptureStateMachine
+│   ├── test_helpers.py      # Unit tests for helper functions & tolerance checks
+│   └── test_user_manager.py # Unit tests for password hashing & account lockout
 │
 ├── utils/
 │   ├── helpers.py           # Shared formatting utilities (datetime, cNm display)
 │   └── logger.py            # Rotating file logger setup
 │
 ├── views/
+│   ├── base_registry.py     # BaseRegistryView scaffold class for CRUD views
 │   ├── components.py        # Reusable ScrollableTable widget
 │   ├── dashboard.py         # Dashboard: initialization, global barcode scanning
 │   ├── driver_manager.py    # Driver registry CRUD
-│   ├── settings_view.py     # Hardware, DB connection, data management settings
+│   ├── settings_panels.py   # Modular Settings Panels (Sensor, Database, Logs/Data)
+│   ├── settings_view.py     # Hardware, DB connection, data management settings container
 │   ├── test_history.py      # Session audit log with filters and CSV export
 │   ├── test_runner.py       # Live test execution: gauge, samples, snap-back engine
 │   ├── test_setup.py        # Procedure template CRUD
@@ -642,12 +669,19 @@ Log rotation is handled automatically (10 MB max per file, 5 backup files retain
 
 ## 11. Testing Documentation
 
-### Running Import Verification
+### Running Unit Test Suite
 
 ```powershell
-python dev_tools/verify_imports.py
+python -m unittest discover -s tests -p "test_*.py"
 ```
-Verifies all 19 project modules import without errors. Run this after any code change before committing.
+Runs the automated unit test suite (`test_helpers.py`, `test_auto_capture.py`, `test_user_manager.py`).
+
+### Running Programmatic Integration Workflows
+
+```powershell
+python dev_tools/verify_v12_workflows.py
+```
+Runs headless end-to-end integration workflows validating DB creation, driver CRUD, battery sequencing, guided test flows, wrong tester dialog interlocks, and UI navigation.
 
 ### Test Procedures
 
@@ -656,13 +690,14 @@ Verifies all 19 project modules import without errors. Run this after any code c
 | Sensor simulation | Enable Simulator Mode in Settings; launch Test Runner; confirm torque values increment and snap-back samples are logged automatically |
 | Serial communication | Connect ng-TTS50-xu to configured COM port; disable Simulator Mode; confirm ONLINE status and live cNm readings in Settings raw frame feed |
 | Pass/fail logic | Create a test definition with tight tolerances; run a session with known good and known bad readings; verify overall result matches Min OK criteria |
-| User access | Log in as each role (Operator, Supervisor, Admin); confirm unavailable menu items are hidden |
+| User access & lockout | Log in as Operator/Supervisor/Admin; verify access restrictions. Attempt 5 incorrect logins to verify 5-minute lockout protection |
 | DB switch | Change to SQL Server connection in Settings; restart app; confirm data persists and new sessions are recorded |
 | CSV export | Apply filters in Test History; click Export History; verify CSV contains only filtered records |
 
 ### Acceptance Criteria
 
-- All `dev_tools/verify_imports.py` checks pass: ✅ `SUCCESS: All modules imported successfully without errors!`
+- All `python -m unittest discover -s tests` checks pass cleanly: `Ran 17 tests in 2.3s OK`
+- All `dev_tools/verify_v12_workflows.py` checks pass: `ALL WORKFLOWS AND VIEW COMPONENTS INTEGRATED AND VERIFIED SUCCESSFULLY!`
 - Simulated test session completes with correct PASS/FAIL/ABORTED result.
 - Hardware settings persist across app restarts (read from `hardware.ini`).
 - No SQL errors in `logs/app.log` during normal operation.
