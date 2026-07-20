@@ -161,7 +161,26 @@ TRANSLATIONS = {
         "hist.view_steps": "View Steps",
         "hist.hide_steps": "Hide Steps",
         "hist.parent_battery": "Battery: {name}",
-        "hist.child_step": "→ Step {idx}: {name} — {result} — Peak: {peak} cNm"
+        "hist.child_step": "→ Step {idx}: {name} — {result} — Peak: {peak} cNm",
+
+        # Settings
+        "settings.title": "System & Hardware Settings",
+        "settings.hw_config": "Hardware Configuration",
+        "settings.db_config": "Database Connection Settings",
+        "settings.logs_data": "System Logs & Data Management",
+        "settings.save_btn": "Save Settings",
+        "settings.test_conn": "Test Connection",
+        "settings.com_port": "Serial COM Port",
+        "settings.sim_mode": "Simulation Mode Active",
+
+        # Admin
+        "admin.title": "User Administration",
+        "admin.create_user": "Create New User",
+        "admin.user_list": "Registered Users List",
+        "admin.col_user": "Username",
+        "admin.col_name": "Full Name",
+        "admin.col_role": "Access Level",
+        "admin.col_status": "Status"
     },
     "pt": {
         # Login
@@ -324,6 +343,25 @@ TRANSLATIONS = {
         "hist.view_steps": "Ver Passos",
         "hist.hide_steps": "Ocultar Passos",
         "hist.parent_battery": "Bateria: {name}",
-        "hist.child_step": "→ Passo {idx}: {name} — {result} — Pico: {peak} cNm"
+        "hist.child_step": "→ Passo {idx}: {name} — {result} — Pico: {peak} cNm",
+
+        # Settings
+        "settings.title": "Configurações do Sistema & Hardware",
+        "settings.hw_config": "Configuração de Hardware",
+        "settings.db_config": "Definições de Base de Dados",
+        "settings.logs_data": "Registos de Sistema & Dados",
+        "settings.save_btn": "Guardar Definições",
+        "settings.test_conn": "Testar Conexão",
+        "settings.com_port": "Porta Serial COM",
+        "settings.sim_mode": "Modo de Simulação Ativo",
+
+        # Admin
+        "admin.title": "Gestão de Utilizadores",
+        "admin.create_user": "Criar Novo Utilizador",
+        "admin.user_list": "Lista de Utilizadores Registados",
+        "admin.col_user": "Nome de Utilizador",
+        "admin.col_name": "Nome Completo",
+        "admin.col_role": "Nível de Acesso",
+        "admin.col_status": "Estado"
     }
 }

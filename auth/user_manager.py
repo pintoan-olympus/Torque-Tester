@@ -46,6 +46,8 @@ class UserManager:
     def __init__(self, db_manager: DatabaseManager):
         self.db = db_manager
         self.current_user: Optional[User] = None
+        self.failed_login_attempts: dict[str, int] = {}
+        self.lockout_until: dict[str, float] = {}
         self.seed_default_admin()
 
     def seed_default_admin(self):
@@ -64,8 +66,16 @@ class UserManager:
             log_action("SYSTEM", "SEED_ADMIN", "Default admin account created ('admin')")
 
     def login(self, username: str, password: str) -> bool:
-        """Authenticate user and establish session."""
+        """Authenticate user and establish session with account lockout protection."""
+        import time
         logger.info(f"Login attempt for user: {username}")
+        
+        now = time.time()
+        if username in self.lockout_until and now < self.lockout_until[username]:
+            remaining = int(self.lockout_until[username] - now)
+            logger.warning(f"Login blocked: account '{username}' is locked out for {remaining} seconds.")
+            return False
+
         user = self.db.get_user_by_username(username)
         if not user:
             logger.warning(f"Login failed: user '{username}' not found.")
@@ -77,10 +87,20 @@ class UserManager:
 
         if verify_password(password, user.password_hash):
             self.current_user = user
+            self.failed_login_attempts[username] = 0
+            if username in self.lockout_until:
+                del self.lockout_until[username]
             log_action(user.username, "LOGIN", "Successfully logged in")
             return True
         else:
-            logger.warning(f"Login failed: incorrect password for user '{username}'.")
+            attempts = self.failed_login_attempts.get(username, 0) + 1
+            self.failed_login_attempts[username] = attempts
+            logger.warning(f"Login failed: incorrect password for user '{username}' (Attempt {attempts}/5).")
+            
+            if attempts >= 5:
+                self.lockout_until[username] = now + 300  # Lock out for 5 minutes (300s)
+                logger.error(f"Account '{username}' locked out due to 5 consecutive failed login attempts.")
+                
             return False
 
     def logout(self):
