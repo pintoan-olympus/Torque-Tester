@@ -546,34 +546,43 @@ Copy-Item torque_tester.db torque_tester_backup_$(Get-Date -Format yyyyMMdd).db
 | Module | Responsibility |
 |---|---|
 | `main.py` | Process entry point, DPI awareness, app lifecycle |
-| `app.py` | MVC controller: view routing, sensor management, status bar |
-| `config.py` | Centralised constants: paths, access levels, test types |
+| `app.py` | MVC controller: view routing, sensor management, session timeout, status bar |
+| `app_state.py` | `AppState` dataclass: typed session state container for active drivers and workbenches |
+| `config.py` | Centralised constants: paths, access levels, test types, enums, thresholds |
+| `theme.py` | Centralised design system tokens: `Colors`, `Fonts`, `Dimensions` |
 | `hardware_config.py` | INI-based hardware settings manager and dynamic fallback default solver |
 | `auth/login_view.py` | Login UI with credential validation |
-| `auth/user_manager.py` | bcrypt hashing, current-user session, role checks |
+| `auth/user_manager.py` | bcrypt hashing, 5-attempt account lockout, current-user session, role checks |
 | `database/db_manager.py` | All DB operations: connection pooling, SQL Server compatibility, schema migration, automated rolling SQLite backups |
 | `database/models.py` | Typed dataclasses mapping DB rows to Python objects |
+| `database/repositories.py` | Entity repository mappers (`UserRepository`, `DriverRepository`) |
+| `engine/auto_capture.py` | Pure business logic state machine (`AutoCaptureStateMachine`) for snap-back peak capture |
+| `dev_tools/verify_v12_workflows.py` | Programmatic headless integration workflow verification suite |
 | `dev_tools/verify_imports.py` | Testing utility: imports sanity checks |
 | `dev_tools/test_settings_crash.py` | Testing utility: SettingsView UI loading check |
+| `i18n/translations.py` | English & Portuguese translation dictionaries |
 | `sensor/sensor_interface.py` | Abstract interface defining the sensor API contract |
 | `sensor/serial_comm.py` | Physical sensor: RS-232 reader, scientific notation parser, peak tracking, background hot-swap auto-reconnect retry loop |
-| `sensor/simulator.py` | Software simulator generating synthetic torque curves |
-| `utils/helpers.py` | Datetime formatting, cNm display helpers |
+| `sensor/simulator.py` | Software simulator generating thread-safe synthetic torque curves |
+| `tests/` | Automated unit test suite (`test_helpers.py`, `test_auto_capture.py`, `test_user_manager.py`) |
+| `utils/helpers.py` | Datetime formatting, cNm display helpers, tolerance checks |
 | `utils/logger.py` | Rotating file logger (16 KB tail read for UI log viewer) |
+| `views/base_registry.py` | `BaseRegistryView` reusable scaffold for registry UI views |
 | `views/components.py` | `ScrollableTable` reusable grid widget |
 | `views/dashboard.py` | Dashboard view: session initialization, global key listener for barcode scans, single/battery mode toggle |
 | `views/driver_manager.py` | Driver CRUD: register, edit, clone, search, delete, and multi-select bulk default test updates |
 | `views/test_setup.py` | Procedure template CRUD |
 | `views/battery_setup.py` | Admin view for test battery creation, editing, cloning, and steps reordering |
-| `views/test_runner.py` | Live test: step-by-step guided instructions, live reading and peak labels, result banners with retry, and completion callbacks |
+| `views/test_runner.py` | Live test: step-by-step guided instructions, live reading and peak labels, result banners with retry, wrong tester interlocks, and completion callbacks |
 | `views/battery_runner.py` | Battery test runner orchestrator: sequences steps, handles skips on failure, and shows sequence-complete summary screens |
 | `views/test_history.py` | Audit log with filters, detail popup, CSV export |
-| `views/settings_view.py` | Hardware tabs, DB connection, data management |
+| `views/settings_panels.py` | Sub-panels for Hardware, Database, and Log/Data management |
+| `views/settings_view.py` | Main settings container hosting hardware, DB connection, and data management panels |
 | `views/user_admin.py` | User management: create, edit, deactivate, password reset |
 
 ### Key Algorithms
 
-#### Auto Peak Snap-Back State Machine (`test_runner.py`)
+#### Auto Peak Snap-Back State Machine (`engine/auto_capture.py`)
 
 ```
 States: IDLE → RISING → CAPTURED → IDLE
