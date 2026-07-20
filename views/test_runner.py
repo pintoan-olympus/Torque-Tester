@@ -113,17 +113,22 @@ class TestRunnerView(ctk.CTkFrame):
         self.test_def = self.app.selected_test_def
         self.workbench = self.app.selected_workbench
         
+        from engine.auto_capture import AutoCaptureStateMachine
+        self.state_machine = AutoCaptureStateMachine(
+            target_value=self.test_def.target_value,
+            snapback_ratio=config.AUTO_CAPTURE_SNAPBACK_RATIO,
+            min_delta_cnm=config.AUTO_CAPTURE_MIN_DELTA_CNM
+        )
+        
         # Test progress state
         self.current_sample_idx = 0
         self.measurements = []  # list of signed floats
         self.session_id = None
         self.is_active = False  # Set to True when in Phase 2 (measuring)
-        self.auto_capture_state = "IDLE"
-        self.tracked_peak = 0.0
         self.polling_started = False
         self.wrong_sensor_dialog_shown = False
         self.auto_capture_var = ctk.BooleanVar(value=True)
-        
+
         # Grid layout for center alignment
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -136,6 +141,22 @@ class TestRunnerView(ctk.CTkFrame):
 
         # Start by showing Screen 1 (Start Screen)
         self.show_start_screen()
+
+    @property
+    def auto_capture_state(self):
+        return self.state_machine.state
+
+    @auto_capture_state.setter
+    def auto_capture_state(self, val):
+        self.state_machine.state = val
+
+    @property
+    def tracked_peak(self):
+        return self.state_machine.tracked_peak
+
+    @tracked_peak.setter
+    def tracked_peak(self, val):
+        self.state_machine.tracked_peak = val
 
     def show_error_redirect(self):
         self.grid_columnconfigure(0, weight=1)
@@ -799,26 +820,9 @@ class TestRunnerView(ctk.CTkFrame):
 
         # Auto-capture logic
         if self.auto_capture_var.get():
-            target_value = self.test_def.target_value
-            start_threshold = max(0.5, 0.15 * target_value)
-            reset_threshold = max(0.3, 0.08 * target_value)
-            
-            if self.auto_capture_state == "IDLE":
-                if abs_current >= start_threshold:
-                    self.auto_capture_state = "RISING"
-                    self.tracked_peak = abs_current
-            elif self.auto_capture_state == "RISING":
-                if abs_current > self.tracked_peak:
-                    self.tracked_peak = abs_current
-                
-                # Snap back
-                if abs_current < self.tracked_peak * config.AUTO_CAPTURE_SNAPBACK_RATIO and (self.tracked_peak - abs_current >= config.AUTO_CAPTURE_MIN_DELTA_CNM):
-                    self.auto_capture_state = "CAPTURED"
-                    self.capture_sample(self.tracked_peak, programmatic=False)
-            elif self.auto_capture_state == "CAPTURED":
-                if abs_current < reset_threshold:
-                    self.auto_capture_state = "IDLE"
-                    self.tracked_peak = 0.0
+            event = self.state_machine.process_reading(abs_current)
+            if event.sample_captured:
+                self.capture_sample(event.captured_value, programmatic=False)
 
         # Update dynamic status text based on auto_capture_state
         try:

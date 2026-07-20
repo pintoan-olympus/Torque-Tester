@@ -46,19 +46,15 @@ class TorqueTesterApp(ctk.CTk):
     def __init__(self, db_manager: DatabaseManager, user_manager: UserManager):
         super().__init__()
         
+        from app_state import AppState
+        self.app_state = AppState()
+        
         self.db = db_manager
         self.user_manager = user_manager
         self.hw_config = HardwareConfig()
         saved_lang = self.hw_config.get_setting("language", "en")
         i18n.set_language(saved_lang)
         self.sensors: list[TorqueSensorInterface] = []
-        self.selected_workbench = ""
-        self.selected_driver = None
-        self.selected_test_def = None
-        self.selected_battery = None
-        self.battery_items = []
-        self.current_battery_step = 0
-        self.battery_session_id = None
         
         # Configure main window
         self.title(f"{config.APP_NAME} - v{config.VERSION}")
@@ -95,6 +91,62 @@ class TorqueTesterApp(ctk.CTk):
         # Periodically monitor sensor status and session timeout
         self.update_sensor_status_bar()
         self.check_session_timeout()
+
+    @property
+    def selected_workbench(self):
+        return self.app_state.selected_workbench
+
+    @selected_workbench.setter
+    def selected_workbench(self, val):
+        self.app_state.selected_workbench = val
+
+    @property
+    def selected_driver(self):
+        return self.app_state.selected_driver
+
+    @selected_driver.setter
+    def selected_driver(self, val):
+        self.app_state.selected_driver = val
+
+    @property
+    def selected_test_def(self):
+        return self.app_state.selected_test_def
+
+    @selected_test_def.setter
+    def selected_test_def(self, val):
+        self.app_state.selected_test_def = val
+
+    @property
+    def selected_battery(self):
+        return self.app_state.selected_battery
+
+    @selected_battery.setter
+    def selected_battery(self, val):
+        self.app_state.selected_battery = val
+
+    @property
+    def battery_items(self):
+        return self.app_state.battery_items
+
+    @battery_items.setter
+    def battery_items(self, val):
+        self.app_state.battery_items = val
+
+    @property
+    def current_battery_step(self):
+        return self.app_state.current_battery_step
+
+    @current_battery_step.setter
+    def current_battery_step(self, val):
+        self.app_state.current_battery_step = val
+
+    @property
+    def battery_session_id(self):
+        return self.app_state.battery_session_id
+
+    @battery_session_id.setter
+    def battery_session_id(self, val):
+        self.app_state.battery_session_id = val
 
     def reset_activity_timer(self, event=None):
         import time
