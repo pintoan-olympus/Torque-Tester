@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import time
 from datetime import datetime
+import config
 from utils.logger import get_logger, log_action
 from utils.helpers import check_tolerance, format_datetime
 import i18n
@@ -759,7 +760,7 @@ class TestRunnerView(ctk.CTkFrame):
         """Continually read current and peak values from the sensor."""
         if not self.is_active or not self.app.sensor:
             # Re-schedule next poll anyway, but skip processing
-            self.after(50, self.poll_sensor)
+            self.after(config.SENSOR_POLL_INTERVAL_MS, self.poll_sensor)
             return
 
         # Wrong tester detection
@@ -770,7 +771,7 @@ class TestRunnerView(ctk.CTkFrame):
                 if idx != correct_idx and sensor and sensor.is_connected():
                     try:
                         other_val = abs(sensor.read_torque())
-                        if other_val >= 2.0:
+                        if other_val >= config.WRONG_TESTER_THRESHOLD_CNM:
                             self.show_wrong_tester_dialog(chr(65 + idx), correct_tester_id)
                             break
                     except Exception:
@@ -789,9 +790,9 @@ class TestRunnerView(ctk.CTkFrame):
             pass
 
         # Set rotation direction animation states based on reading polarity
-        if current > 0.15:
+        if current > config.ROTATION_DIRECTION_THRESHOLD_CNM:
             self.dir_anim.set_direction("CW")
-        elif current < -0.15:
+        elif current < -config.ROTATION_DIRECTION_THRESHOLD_CNM:
             self.dir_anim.set_direction("CCW")
         else:
             self.dir_anim.set_direction("IDLE")
@@ -811,7 +812,7 @@ class TestRunnerView(ctk.CTkFrame):
                     self.tracked_peak = abs_current
                 
                 # Snap back
-                if abs_current < self.tracked_peak * 0.85 and (self.tracked_peak - abs_current >= 0.5):
+                if abs_current < self.tracked_peak * config.AUTO_CAPTURE_SNAPBACK_RATIO and (self.tracked_peak - abs_current >= config.AUTO_CAPTURE_MIN_DELTA_CNM):
                     self.auto_capture_state = "CAPTURED"
                     self.capture_sample(self.tracked_peak, programmatic=False)
             elif self.auto_capture_state == "CAPTURED":
@@ -838,7 +839,7 @@ class TestRunnerView(ctk.CTkFrame):
         except Exception:
             pass
         
-        self.after(50, self.poll_sensor)
+        self.after(config.SENSOR_POLL_INTERVAL_MS, self.poll_sensor)
 
     def trigger_simulated_torque(self):
         if hasattr(self.app.sensor, "start_torque_cycle"):

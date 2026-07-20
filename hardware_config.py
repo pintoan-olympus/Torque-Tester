@@ -38,7 +38,7 @@ class HardwareConfig:
             try:
                 self.parser.read(self.filepath, encoding="utf-8")
                 logger.info(f"Loaded hardware config from {self.filepath}")
-            except Exception as e:
+            except (configparser.Error, OSError) as e:
                 logger.error(f"Error reading hardware config {self.filepath}: {e}")
                 self.create_default_config()
         else:
@@ -51,7 +51,7 @@ class HardwareConfig:
             with open(self.filepath, "w", encoding="utf-8") as f:
                 self.parser.write(f)
             logger.info(f"Saved hardware config to {self.filepath}")
-        except Exception as e:
+        except OSError as e:
             logger.error(f"Error saving hardware config {self.filepath}: {e}")
 
     def create_default_config(self):
